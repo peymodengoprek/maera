@@ -1,0 +1,75 @@
+app:
+  title: Greenhouse Monitor
+  theme: default
+  columns: 12
+
+sources:
+  temperature:
+    type: mock
+    interval: 1000
+    min: 18
+    max: 38
+    unit: "°C"
+  humidity:
+    type: mock
+    interval: 1500
+    min: 30
+    max: 90
+    unit: "%"
+
+widgets:
+  - type: gauge
+    title: Suhu
+    bind: temperature.value
+    min: 0
+    max: 50
+    unit: "°C"
+    span: 4
+    steps:
+      - at: 33
+        text: Terlalu panas
+        status: danger
+      - at: 28
+        text: Hangat
+        status: warning
+      - at: 22
+        text: Normal
+        status: ok
+      - text: Dingin
+        status: info
+
+  - type: stat
+    title: Kelembapan
+    bind: humidity.value
+    unit: "%"
+    decimals: 1
+    span: 4
+    state:
+      threshold: 60
+      above:
+        text: Lembap
+        status: info
+      below: Normal
+
+  - type: status
+    title: Kipas
+    bind: temperature.value
+    span: 4
+    state:
+      threshold: 30
+      above:
+        text: Menyala
+        status: warning
+      below: Mati
+
+  - type: chart
+    title: Tren Suhu
+    bind: temperature.value
+    points: 60
+    min: 15
+    max: 40
+    span: 12
+
+  - type: text
+    content: Data suhu dan kelembapan adalah simulasi (mock).
+    span: 12

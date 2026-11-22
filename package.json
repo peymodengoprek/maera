@@ -1,0 +1,22 @@
+{
+  "name": "maera-monorepo",
+  "private": true,
+  "version": "0.0.0",
+  "description": "maera — UI-ready JavaScript framework untuk dashboard IoT deklaratif (1 file index.maera = 1 dashboard).",
+  "workspaces": ["packages/*"],
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "dev": "tsx packages/cli/src/bin.ts dev",
+    "build": "npm run build -w @maera/core && npm run build -w @maera/ui && npm run build -w @maera/cli",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "check:example": "npm run check:example -w @maera/core",
+    "example": "npm run build && node packages/cli/dist/bin.js build examples/index.maera -o dist/example.html"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "esbuild": "^0.25.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}
