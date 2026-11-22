@@ -161,3 +161,88 @@ test("state dan steps tidak boleh bersamaan; widget lain menolaknya", () => {
   const chart = compile(withWidget("  - type: chart\n    bind: temp.value\n    state: { threshold: 1, above: A }\n"));
   assert.equal(chart.errors[0]!.code, "UNSUPPORTED");
 });
+
+test("kunci tidak dikenal pada level app ditolak dengan nomor baris dan pilihan valid", () => {
+  const src = "app:\n  title: Test\n  titel: SalahKetik\n  colums: 12\nsources:\n  temp:\n    type: mock\nwidgets: []\n";
+  const r = compile(src);
+  assert.equal(r.ok, false);
+  const errors = r.errors.filter((e) => e.code === "UNKNOWN_KEY");
+  assert.equal(errors.length, 2);
+
+  const e1 = errors.find((e) => e.path === "app.titel")!;
+  assert.ok(e1);
+  assert.equal(e1.line, 3);
+  assert.match(e1.message, /title, theme, columns/);
+
+  const e2 = errors.find((e) => e.path === "app.colums")!;
+  assert.ok(e2);
+  assert.equal(e2.line, 4);
+  assert.match(e2.message, /title, theme, columns/);
+});
+
+test("kunci tidak dikenal pada level source ditolak (mock dan rest)", () => {
+  const src = `app:
+  title: T
+sources:
+  temp:
+    type: mock
+    intervall: 1000
+  api:
+    type: rest
+    url: http://localhost:3000/api
+    urll: http://localhost:3000/api
+widgets: []
+`;
+  const r = compile(src);
+  assert.equal(r.ok, false);
+  const errors = r.errors.filter((e) => e.code === "UNKNOWN_KEY");
+  assert.equal(errors.length, 2);
+
+  const eMock = errors.find((e) => e.path === "sources.temp.intervall")!;
+  assert.ok(eMock);
+  assert.equal(eMock.line, 6);
+  assert.match(eMock.message, /type, interval, min, max, unit/);
+
+  const eRest = errors.find((e) => e.path === "sources.api.urll")!;
+  assert.ok(eRest);
+  assert.equal(eRest.line, 10);
+  assert.match(eRest.message, /type, url, interval, path, headers/);
+});
+
+test("kunci tidak dikenal pada level widget ditolak untuk setiap tipe widget", () => {
+  const src = `app:
+  title: T
+sources:
+  temp:
+    type: mock
+widgets:
+  - type: stat
+    bind: temp.value
+    titel: Suhu
+  - type: chart
+    bind: temp.value
+    colums: 6
+  - type: text
+    content: Halo
+    bind: temp.value
+`;
+  const r = compile(src);
+  assert.equal(r.ok, false);
+  const errors = r.errors.filter((e) => e.code === "UNKNOWN_KEY");
+  assert.equal(errors.length, 3);
+
+  const eStat = errors.find((e) => e.path === "widgets[0].titel")!;
+  assert.ok(eStat);
+  assert.equal(eStat.line, 9);
+  assert.match(eStat.message, /type, title, span, bind, unit, decimals, state, steps/);
+
+  const eChart = errors.find((e) => e.path === "widgets[1].colums")!;
+  assert.ok(eChart);
+  assert.equal(eChart.line, 12);
+  assert.match(eChart.message, /type, title, span, bind, points, unit, min, max/);
+
+  const eText = errors.find((e) => e.path === "widgets[2].bind")!;
+  assert.ok(eText);
+  assert.equal(eText.line, 15);
+  assert.match(eText.message, /type, title, span, content/);
+});

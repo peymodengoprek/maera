@@ -40,6 +40,25 @@ const WIDGET_SPECS: Record<
 
 export const WIDGET_TYPES = Object.keys(WIDGET_SPECS) as WidgetType[];
 
+const CONDITIONAL_WIDGETS = new Set<string>(["status", "gauge", "stat"]);
+const CONDITIONAL_KEYS = new Set(["state", "steps"]);
+const APP_KEYS = new Set(["title", "theme", "columns"]);
+const SOURCE_MOCK_KEYS = new Set(["type", "interval", "min", "max", "unit"]);
+const SOURCE_REST_KEYS = new Set(["type", "url", "interval", "path", "headers"]);
+
+const WIDGET_ALLOWED_KEYS: Record<WidgetType, Set<string>> = Object.fromEntries(
+  (Object.keys(WIDGET_SPECS) as WidgetType[]).map((type) => {
+    const spec = WIDGET_SPECS[type];
+    const keys = ["type", "title", "span"];
+    if (spec.bind !== "none") keys.push("bind");
+    keys.push(...Object.keys(spec.props));
+    if (CONDITIONAL_WIDGETS.has(type)) {
+      keys.push("state", "steps");
+    }
+    return [type, new Set(keys)];
+  }),
+) as Record<WidgetType, Set<string>>;
+
 const BINDING_RE = /^[A-Za-z_][\w-]*(\.[A-Za-z_][\w-]*)+$/;
 
 type Obj = Record<string, unknown>;
@@ -146,7 +165,7 @@ function validateApp(raw: unknown, err: ErrFn): AppNode | null {
     err("INVALID_TYPE", ["app"], "`app` harus berupa objek.");
     return null;
   }
-  let ok = true;
+  let ok = unknownKeys(raw, APP_KEYS, ["app"], err);
   const title = raw["title"];
   if (typeof title !== "string" || title.trim() === "") {
     err(
@@ -219,6 +238,19 @@ function validateSources(
       continue;
     }
     const line = lookupLine(li, base);
+    const type = def["type"];
+    if (type !== "mock" && type !== "rest") {
+      err(
+        type === undefined ? "MISSING_FIELD" : "INVALID_TYPE",
+        [...base, "type"],
+        `Source '${name}' butuh \`type\`: "mock" atau "rest".`,
+      );
+      continue;
+    }
+
+    const allowed = type === "mock" ? SOURCE_MOCK_KEYS : SOURCE_REST_KEYS;
+    let ok = unknownKeys(def, allowed, base, err);
+
     const interval = def["interval"];
     if (interval !== undefined && (!isNum(interval) || interval < 50)) {
       err(
@@ -226,10 +258,10 @@ function validateSources(
         [...base, "interval"],
         `'interval' harus angka ≥ 50 (ms).`,
       );
-      continue;
+      ok = false;
     }
 
-    if (def["type"] === "mock") {
+    if (type === "mock") {
       const min = def["min"] ?? 0;
       const max = def["max"] ?? 100;
       if (!isNum(min) || !isNum(max)) {
@@ -253,6 +285,7 @@ function validateSources(
         err("INVALID_TYPE", [...base, "unit"], "'unit' harus berupa teks.");
         continue;
       }
+      if (!ok) continue;
       out[name] = {
         type: "mock",
         interval: (interval as number | undefined) ?? 1000,
@@ -261,7 +294,7 @@ function validateSources(
         ...(unit ? { unit } : {}),
         line,
       };
-    } else if (def["type"] === "rest") {
+    } else {
       const url = def["url"];
       if (typeof url !== "string" || url === "") {
         err(
@@ -301,6 +334,7 @@ function validateSources(
         );
         continue;
       }
+      if (!ok) continue;
       out[name] = {
         type: "rest",
         url,
@@ -309,12 +343,6 @@ function validateSources(
         ...(headers ? { headers: headers as Record<string, string> } : {}),
         line,
       };
-    } else {
-      err(
-        def["type"] === undefined ? "MISSING_FIELD" : "INVALID_TYPE",
-        [...base, "type"],
-        `Source '${name}' butuh \`type\`: "mock" atau "rest".`,
-      );
     }
   }
   return out;
@@ -365,6 +393,12 @@ function validateWidgets(
     const spec = WIDGET_SPECS[type as WidgetType];
     let ok = true;
 
+    const allowed = WIDGET_ALLOWED_KEYS[type as WidgetType];
+    const ignore = CONDITIONAL_WIDGETS.has(type) ? undefined : CONDITIONAL_KEYS;
+    if (!unknownKeys(w, allowed, base, err, ignore)) {
+      ok = false;
+    }
+
     const title = w["title"];
     if (title !== undefined && typeof title !== "string") {
       err("INVALID_TYPE", [...base, "title"], "'title' harus berupa teks.");
@@ -392,6 +426,8 @@ function validateWidgets(
         );
         ok = false;
       }
+    } else if (spec.bind === "none") {
+      // bind tidak diizinkan pada widget ini; sudah dilaporkan oleh unknownKeys
     } else if (typeof bindRaw !== "string" || !parseBinding(bindRaw)) {
       err(
         "INVALID_BINDING",
@@ -459,7 +495,6 @@ function validateWidgets(
 
 // ── state: / steps: ───────────────────────────────────────────────
 
-const CONDITIONAL_WIDGETS = new Set<string>(["status", "gauge", "stat"]);
 const STATE_KEYS = new Set(["threshold", "above", "below", "equal"]);
 const STEP_KEYS = new Set(["at", "text", "status"]);
 
@@ -468,10 +503,11 @@ function unknownKeys(
   allowed: Set<string>,
   path: PathSeg[],
   err: ErrFn,
+  ignore?: Set<string>,
 ): boolean {
   let ok = true;
   for (const key of Object.keys(raw)) {
-    if (allowed.has(key)) continue;
+    if (allowed.has(key) || ignore?.has(key)) continue;
     err(
       "UNKNOWN_KEY",
       [...path, key],
