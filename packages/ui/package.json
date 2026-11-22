@@ -12,8 +12,13 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist", "README.md"],
-  "publishConfig": { "access": "public" },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -22,5 +27,8 @@
   },
   "dependencies": {
     "@maera/core": "^0.1.0"
+  },
+  "devDependencies": {
+    "happy-dom": "^21.0.4"
   }
 }

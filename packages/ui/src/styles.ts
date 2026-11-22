@@ -5,7 +5,7 @@ export const CSS = `
 .maera{
   --m-bg:#f4f6f8; --m-surface:#ffffff; --m-border:#e2e6ea;
   --m-text:#14202b; --m-muted:#667785; --m-accent:#0f9d8a; --m-track:#e6ebef;
-  --m-ok:#16a34a; --m-info:#2563eb; --m-warning:#d97706; --m-danger:#dc2626;
+  --m-ok:#15803d; --m-info:#2563eb; --m-warning:#b45309; --m-danger:#dc2626;
   --m-radius:14px; --m-gap:16px;
   --m-font:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   box-sizing:border-box; min-height:100%; padding:24px;
