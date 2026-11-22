@@ -12,13 +12,18 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "sideEffects": false,
-  "publishConfig": { "access": "public" },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "tsx --test test/compiler.test.ts test/conditions.test.ts test/store.test.ts",
+    "test": "tsx --test test/compiler.test.ts test/conditions.test.ts test/store.test.ts test/sources.test.ts",
     "check:example": "tsx test/check-example.ts",
     "prepublishOnly": "npm run build"
   },
@@ -26,6 +31,8 @@
     "js-yaml": "^4.1.0"
   },
   "devDependencies": {
-    "@types/js-yaml": "^4.0.9"
+    "@types/js-yaml": "^4.0.9",
+    "@types/ws": "^8.18.2",
+    "ws": "^8.23.0"
   }
 }

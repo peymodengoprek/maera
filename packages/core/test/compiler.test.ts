@@ -246,3 +246,96 @@ widgets:
   assert.equal(eText.line, 15);
   assert.match(eText.message, /type, title, span, content/);
 });
+
+test("source websocket dan mqtt terkompilasi valid", () => {
+  const src = `app:
+  title: Realtime
+sources:
+  ws:
+    type: websocket
+    url: ws://localhost:8080/stream
+    path: sensor.value
+    reconnect_ms: 500
+    max_reconnect_ms: 5000
+  mq:
+    type: mqtt
+    url: wss://localhost:8083/mqtt
+    topic: telemetry/greenhouse
+    path: temp
+widgets:
+  - type: stat
+    bind: ws.value
+  - type: stat
+    bind: mq.temp
+`;
+  const r = compile(src);
+  assert.equal(r.ok, true);
+  if (!r.ok) return;
+  assert.equal(r.ast.sources["ws"]?.type, "websocket");
+  assert.equal(r.ast.sources["ws"]?.url, "ws://localhost:8080/stream");
+  assert.equal(r.ast.sources["ws"]?.path, "sensor.value");
+  assert.equal(r.ast.sources["ws"]?.reconnect_ms, 500);
+  assert.equal(r.ast.sources["ws"]?.max_reconnect_ms, 5000);
+
+  assert.equal(r.ast.sources["mq"]?.type, "mqtt");
+  assert.equal(r.ast.sources["mq"]?.url, "wss://localhost:8083/mqtt");
+  assert.equal(r.ast.sources["mq"]?.topic, "telemetry/greenhouse");
+  assert.equal(r.ast.sources["mq"]?.path, "temp");
+});
+
+test("validasi kesalahan websocket dan mqtt dilaporkan dengan path dan nomor baris", () => {
+  const src = `app:
+  title: Realtime Errors
+sources:
+  bad_ws:
+    type: websocket
+    url: http://localhost:8080
+    path: 123
+    unknown_prop: abc
+  missing_ws:
+    type: websocket
+  bad_mq:
+    type: mqtt
+    url: ftp://localhost:8083
+    topic: ""
+    reconnect_ms: 10
+  missing_mq_topic:
+    type: mqtt
+    url: ws://localhost:8083
+    reconnect_ms: 5000
+    max_reconnect_ms: 1000
+widgets: []
+`;
+  const r = compile(src);
+  assert.equal(r.ok, false);
+
+  const byPath = Object.fromEntries(r.errors.map((e) => [e.path, e]));
+
+  assert.equal(byPath["sources.bad_ws.url"]?.code, "INVALID_TYPE");
+  assert.equal(byPath["sources.bad_ws.url"]?.line, 6);
+
+  assert.equal(byPath["sources.bad_ws.path"]?.code, "INVALID_TYPE");
+  assert.equal(byPath["sources.bad_ws.path"]?.line, 7);
+
+  assert.equal(byPath["sources.bad_ws.unknown_prop"]?.code, "UNKNOWN_KEY");
+  assert.equal(byPath["sources.bad_ws.unknown_prop"]?.line, 8);
+  assert.match(byPath["sources.bad_ws.unknown_prop"]?.message ?? "", /type, url, path, reconnect_ms, max_reconnect_ms/);
+
+  assert.equal(byPath["sources.missing_ws.url"]?.code, "MISSING_FIELD");
+  assert.equal(byPath["sources.missing_ws.url"]?.line, 9);
+
+  assert.equal(byPath["sources.bad_mq.url"]?.code, "INVALID_TYPE");
+  assert.equal(byPath["sources.bad_mq.url"]?.line, 13);
+
+  assert.equal(byPath["sources.bad_mq.topic"]?.code, "INVALID_TYPE");
+  assert.equal(byPath["sources.bad_mq.topic"]?.line, 14);
+
+  assert.equal(byPath["sources.bad_mq.reconnect_ms"]?.code, "OUT_OF_RANGE");
+  assert.equal(byPath["sources.bad_mq.reconnect_ms"]?.line, 15);
+
+  assert.equal(byPath["sources.missing_mq_topic.topic"]?.code, "MISSING_FIELD");
+  assert.equal(byPath["sources.missing_mq_topic.topic"]?.line, 16);
+
+  assert.equal(byPath["sources.missing_mq_topic.reconnect_ms"]?.code, "OUT_OF_RANGE");
+  assert.equal(byPath["sources.missing_mq_topic.reconnect_ms"]?.line, 19);
+});

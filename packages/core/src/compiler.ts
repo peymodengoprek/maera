@@ -45,6 +45,21 @@ const CONDITIONAL_KEYS = new Set(["state", "steps"]);
 const APP_KEYS = new Set(["title", "theme", "columns"]);
 const SOURCE_MOCK_KEYS = new Set(["type", "interval", "min", "max", "unit"]);
 const SOURCE_REST_KEYS = new Set(["type", "url", "interval", "path", "headers"]);
+const SOURCE_WEBSOCKET_KEYS = new Set([
+  "type",
+  "url",
+  "path",
+  "reconnect_ms",
+  "max_reconnect_ms",
+]);
+const SOURCE_MQTT_KEYS = new Set([
+  "type",
+  "url",
+  "topic",
+  "path",
+  "reconnect_ms",
+  "max_reconnect_ms",
+]);
 
 const WIDGET_ALLOWED_KEYS: Record<WidgetType, Set<string>> = Object.fromEntries(
   (Object.keys(WIDGET_SPECS) as WidgetType[]).map((type) => {
@@ -239,26 +254,69 @@ function validateSources(
     }
     const line = lookupLine(li, base);
     const type = def["type"];
-    if (type !== "mock" && type !== "rest") {
+    if (
+      type !== "mock" &&
+      type !== "rest" &&
+      type !== "websocket" &&
+      type !== "mqtt"
+    ) {
       err(
         type === undefined ? "MISSING_FIELD" : "INVALID_TYPE",
         [...base, "type"],
-        `Source '${name}' butuh \`type\`: "mock" atau "rest".`,
+        `Source '${name}' butuh \`type\`: "mock", "rest", "websocket", atau "mqtt".`,
       );
       continue;
     }
 
-    const allowed = type === "mock" ? SOURCE_MOCK_KEYS : SOURCE_REST_KEYS;
+    const allowed =
+      type === "mock"
+        ? SOURCE_MOCK_KEYS
+        : type === "rest"
+          ? SOURCE_REST_KEYS
+          : type === "websocket"
+            ? SOURCE_WEBSOCKET_KEYS
+            : SOURCE_MQTT_KEYS;
     let ok = unknownKeys(def, allowed, base, err);
 
-    const interval = def["interval"];
-    if (interval !== undefined && (!isNum(interval) || interval < 50)) {
-      err(
-        "OUT_OF_RANGE",
-        [...base, "interval"],
-        `'interval' harus angka ≥ 50 (ms).`,
-      );
-      ok = false;
+    if (type === "mock" || type === "rest") {
+      const interval = def["interval"];
+      if (interval !== undefined && (!isNum(interval) || interval < 50)) {
+        err(
+          "OUT_OF_RANGE",
+          [...base, "interval"],
+          `'interval' harus angka ≥ 50 (ms).`,
+        );
+        ok = false;
+      }
+    }
+
+    if (type === "websocket" || type === "mqtt") {
+      const reconnectMs = def["reconnect_ms"];
+      if (reconnectMs !== undefined && (!isNum(reconnectMs) || reconnectMs < 50)) {
+        err(
+          !isNum(reconnectMs) ? "INVALID_TYPE" : "OUT_OF_RANGE",
+          [...base, "reconnect_ms"],
+          "'reconnect_ms' harus angka ≥ 50 (ms).",
+        );
+        ok = false;
+      }
+      const maxReconnectMs = def["max_reconnect_ms"];
+      if (maxReconnectMs !== undefined && (!isNum(maxReconnectMs) || maxReconnectMs < 50)) {
+        err(
+          !isNum(maxReconnectMs) ? "INVALID_TYPE" : "OUT_OF_RANGE",
+          [...base, "max_reconnect_ms"],
+          "'max_reconnect_ms' harus angka ≥ 50 (ms).",
+        );
+        ok = false;
+      }
+      if (isNum(reconnectMs) && isNum(maxReconnectMs) && reconnectMs > maxReconnectMs) {
+        err(
+          "OUT_OF_RANGE",
+          [...base, "reconnect_ms"],
+          "'reconnect_ms' tidak boleh lebih besar dari 'max_reconnect_ms'.",
+        );
+        ok = false;
+      }
     }
 
     if (type === "mock") {
@@ -288,13 +346,13 @@ function validateSources(
       if (!ok) continue;
       out[name] = {
         type: "mock",
-        interval: (interval as number | undefined) ?? 1000,
+        interval: (def["interval"] as number | undefined) ?? 1000,
         min,
         max,
         ...(unit ? { unit } : {}),
         line,
       };
-    } else {
+    } else if (type === "rest") {
       const url = def["url"];
       if (typeof url !== "string" || url === "") {
         err(
@@ -338,9 +396,96 @@ function validateSources(
       out[name] = {
         type: "rest",
         url,
-        interval: (interval as number | undefined) ?? 5000,
-        ...(path ? { path } : {}),
+        interval: (def["interval"] as number | undefined) ?? 5000,
+        ...(typeof path === `string` && path ? { path } : {}),
         ...(headers ? { headers: headers as Record<string, string> } : {}),
+        line,
+      };
+    } else if (type === "websocket") {
+      const url = def["url"];
+      if (typeof url !== "string" || url === "") {
+        err(
+          url === undefined ? "MISSING_FIELD" : "INVALID_TYPE",
+          [...base, "url"],
+          "Source `websocket` wajib punya `url` berupa teks.",
+        );
+        ok = false;
+      } else if (!/^wss?:\/\//i.test(url)) {
+        err(
+          "INVALID_TYPE",
+          [...base, "url"],
+          "`url` harus diawali ws:// atau wss://.",
+        );
+        ok = false;
+      }
+      const path = def["path"];
+      if (path !== undefined && typeof path !== "string") {
+        err(
+          "INVALID_TYPE",
+          [...base, "path"],
+          "'path' harus berupa teks, mis. `data.temp`.",
+        );
+        ok = false;
+      }
+      if (!ok) continue;
+      out[name] = {
+        type: "websocket",
+        url: url as string,
+        ...(typeof path === `string` && path ? { path } : {}),
+        ...(isNum(def["reconnect_ms"]) ? { reconnect_ms: def["reconnect_ms"] } : {}),
+        ...(isNum(def["max_reconnect_ms"]) ? { max_reconnect_ms: def["max_reconnect_ms"] } : {}),
+        line,
+      };
+    } else {
+      const url = def["url"];
+      if (typeof url !== "string" || url === "") {
+        err(
+          url === undefined ? "MISSING_FIELD" : "INVALID_TYPE",
+          [...base, "url"],
+          "Source `mqtt` wajib punya `url` berupa teks.",
+        );
+        ok = false;
+      } else if (!/^wss?:\/\//i.test(url)) {
+        err(
+          "INVALID_TYPE",
+          [...base, "url"],
+          "`url` harus diawali ws:// atau wss://.",
+        );
+        ok = false;
+      }
+      const topic = def["topic"];
+      if (topic === undefined) {
+        err(
+          "MISSING_FIELD",
+          [...base, "topic"],
+          "Source `mqtt` wajib punya `topic` berupa teks.",
+        );
+        ok = false;
+      } else if (typeof topic !== "string" || topic.trim() === "") {
+        err(
+          "INVALID_TYPE",
+          [...base, "topic"],
+          "'topic' harus berupa teks tidak kosong.",
+        );
+        ok = false;
+      }
+      const path = def["path"];
+      if (path !== undefined && typeof path !== "string") {
+        err(
+          "INVALID_TYPE",
+          [...base, "path"],
+          "'path' harus berupa teks, mis. `data.temp`.",
+        );
+        ok = false;
+      }
+      if (!ok) continue;
+      out[name] = {
+        type: "mqtt",
+        url: url as string,
+        topic: topic as string,
+        ...(typeof path === `string` && path ? { path } : {}),
+        ...(isNum(def["reconnect_ms"]) ? { reconnect_ms: def["reconnect_ms"] } : {}),
+        ...(isNum(def["max_reconnect_ms"]) ? { max_reconnect_ms: def["max_reconnect_ms"] } : {}),
         line,
       };
     }

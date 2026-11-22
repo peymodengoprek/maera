@@ -39,7 +39,32 @@ export interface RestSource {
   line: number | null;
 }
 
-export type SourceNode = MockSource | RestSource;
+export interface WebSocketSource {
+  type: "websocket";
+  url: string;
+  /** Jalur titik ke bagian pesan JSON yang diambil, mis. `data.temp` */
+  path?: string;
+  /** Interval reconnect awal dalam ms (default 1000) */
+  reconnect_ms?: number;
+  /** Batas maksimum interval reconnect dalam ms (default 30000) */
+  max_reconnect_ms?: number;
+  line: number | null;
+}
+
+export interface MqttSource {
+  type: "mqtt";
+  url: string;
+  topic: string;
+  /** Jalur titik ke bagian payload JSON yang diambil, mis. `data.temp` */
+  path?: string;
+  /** Interval reconnect awal dalam ms (default 1000) */
+  reconnect_ms?: number;
+  /** Batas maksimum interval reconnect dalam ms (default 30000) */
+  max_reconnect_ms?: number;
+  line: number | null;
+}
+
+export type SourceNode = MockSource | RestSource | WebSocketSource | MqttSource;
 
 export type WidgetType = "stat" | "gauge" | "chart" | "status" | "text";
 

@@ -15,6 +15,7 @@ export type {
   Listener,
   maeraAST,
   MockSource,
+  MqttSource,
   Outcome,
   RestSource,
   SourceData,
@@ -22,6 +23,7 @@ export type {
   StatusLevel,
   Step,
   Unsubscribe,
+  WebSocketSource,
   WidgetNode,
   WidgetType,
 } from "./types.js";
