@@ -8,7 +8,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue?logo=typescript)](https://www.typescriptlang.org/)
 [![Monorepo](https://img.shields.io/badge/Architecture-Monorepo-orange)](https://github.com/)
 
-[Key Features](#-key-features) • [Quick Start](#-quick-start) • [Example Configuration](#-example-configuration) • [Packages](#-monorepo-structure) • [Roadmap](#-roadmap)
+[Key Features](#-key-features) • [Quick Start](#-quick-start) • [Example Configuration](#-example-configuration) • [Syntax Reference](docs/syntax.md) • [Packages](#-monorepo-structure) • [Roadmap](#-roadmap)
 
 </div>
 
@@ -105,7 +105,7 @@ maera/
 | :--- | :--- | :---: |
 | **`@maera/core`** | AST Compiler, schema validator, line-by-line error reporter, reactive pub-sub data store, and mock/REST data polling sources. | `v0.1.0` ✅ |
 | **`@maera/ui`** | Responsive 12-column grid layout, SVG gauge/chart renderers, theme engine (`--m-*`), and conditional state evaluators (`state:` / `steps:`). | `v0.1.0` ✅ |
-| **`@maera/cli`** | Command-line tool featuring instant dev server, esbuild watch-mode, live reload, and standalone static HTML bundle builder. | `v0.1.0` 🔄 |
+| **`@maera/cli`** | Command-line tool featuring instant dev server, esbuild watch-mode, live reload, and standalone static HTML bundle builder. | `v0.1.0` ✅ |
 
 ---
 
@@ -150,8 +150,24 @@ widgets:
     title: "Power Output History"
     bind: solar_output.wattage
     span: 12
-    history: 30
+    points: 30
 ```
+
+For the complete reference of every `app`, `sources`, and `widgets` property,
+conditions, and CLI options, see **[docs/syntax.md](docs/syntax.md)**.
+
+---
+
+## 🗺️ Roadmap
+
+- **v0.1 — Complete ✅** Core compiler with line-by-line diagnostics, reactive
+  pub/sub store, mock/REST sources, 12-column UI with stat/gauge/chart/status/text
+  widgets, and `maera dev` / `maera build`.
+- **v0.2 — Complete ✅** WebSocket and MQTT real-time sources, interactive
+  `switch`/`slider` widgets with a two-way write path, generated JSON Schema for
+  editor validation, and this full syntax reference.
+- **v0.3 — Planned 🚧** Live Playground and documentation site.
+
 ---
 
 ## 📄 License

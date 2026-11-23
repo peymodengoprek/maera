@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { load } from "js-yaml";
 import Ajv from "ajv";
 import {
+  compile,
   generateSchema,
   SOURCE_SPECS,
   STATUS_LEVELS,
@@ -13,6 +14,8 @@ import {
 
 const exampleUrl = new URL("../../../examples/index.maera", import.meta.url);
 const schemaUrl = new URL("../../../schema/maera.schema.json", import.meta.url);
+const readmeUrl = new URL("../../../README.md", import.meta.url);
+const syntaxUrl = new URL("../../../docs/syntax.md", import.meta.url);
 
 type Obj = Record<string, unknown>;
 
@@ -83,4 +86,55 @@ test("examples/index.maera lulus validasi JSON Schema", () => {
   const doc = load(readFileSync(exampleUrl, "utf8"));
   const ok = validate(doc);
   assert.equal(ok, true, JSON.stringify(validate.errors, null, 2));
+});
+
+/** Ambil semua blok fenced `yaml` atau `maera` yang dianggap dashboard lengkap. */
+function extractDashboardBlocks(markdown: string): string[] {
+  const blocks: string[] = [];
+  let language: string | null = null;
+  let buffer: string[] = [];
+  for (const line of markdown.split(/\r?\n/)) {
+    const fence = /^\s*```\s*([A-Za-z0-9_-]*)\s*$/.exec(line);
+    if (language === null) {
+      if (fence) {
+        language = fence[1]!.toLowerCase();
+        buffer = [];
+      }
+    } else if (fence) {
+      if (language === "yaml" || language === "maera") {
+        blocks.push(buffer.join("\n"));
+      }
+      language = null;
+      buffer = [];
+    } else {
+      buffer.push(line);
+    }
+  }
+  return blocks;
+}
+
+test("contoh dashboard di README.md dan docs/syntax.md valid (compile + JSON Schema)", () => {
+  const ajv = new Ajv({ strict: false, allErrors: true });
+  const validate = ajv.compile(generateSchema());
+
+  for (const file of [readmeUrl, syntaxUrl]) {
+    const blocks = extractDashboardBlocks(readFileSync(file, "utf8"));
+    assert.ok(blocks.length > 0, `${file.pathname} tidak punya blok yaml/maera`);
+
+    blocks.forEach((code, index) => {
+      const result = compile(code);
+      const label = `${file.pathname} blok #${index + 1}`;
+      assert.equal(
+        result.ok,
+        true,
+        `${label} gagal compile: ${result.ok ? "" : JSON.stringify(result.errors, null, 2)}\n${code}`,
+      );
+      const valid = validate(load(code));
+      assert.equal(
+        valid,
+        true,
+        `${label} gagal JSON Schema: ${JSON.stringify(validate.errors, null, 2)}\n${code}`,
+      );
+    });
+  }
 });
