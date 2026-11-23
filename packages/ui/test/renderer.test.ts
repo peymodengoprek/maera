@@ -13,6 +13,75 @@ function setupDOM() {
   return { window, doc, container };
 }
 
+/** Tunggu semua microtask Promise selesai. */
+async function flush(): Promise<void> {
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
+}
+
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
+const CONTROL_YAML = `
+app:
+  title: Kontrol
+sources:
+  device:
+    type: mock
+widgets:
+  - type: switch
+    bind: device.power
+    label: Daya
+  - type: slider
+    bind: device.level
+    min: 0
+    max: 100
+    step: 5
+`;
+
+function mountControls() {
+  const res = compile(CONTROL_YAML);
+  assert.ok(res.ok, "YAML kontrol harus valid");
+  if (!res.ok) throw new Error("unreachable");
+
+  const { window, container } = setupDOM();
+  const store = createStore();
+  const handle = mount(res.ast, container, { store, run: false });
+
+  const switchCard = container.querySelector<HTMLElement>('[data-type="switch"]')!;
+  const switchWrap = switchCard.querySelector<HTMLElement>(".maera-switch")!;
+  const switchInput = switchCard.querySelector<HTMLInputElement>(".maera-switch-input")!;
+  const switchStatus = switchCard.querySelector<HTMLElement>(".maera-control-status")!;
+
+  const sliderCard = container.querySelector<HTMLElement>('[data-type="slider"]')!;
+  const sliderWrap = sliderCard.querySelector<HTMLElement>(".maera-slider")!;
+  const sliderInput = sliderCard.querySelector<HTMLInputElement>(".maera-slider-input")!;
+  const sliderValue = sliderCard.querySelector<HTMLElement>(".maera-slider-value")!;
+  const sliderStatus = sliderCard.querySelector<HTMLElement>(".maera-control-status")!;
+
+  return {
+    window,
+    container,
+    store,
+    handle,
+    switchCard,
+    switchWrap,
+    switchInput,
+    switchStatus,
+    sliderCard,
+    sliderWrap,
+    sliderInput,
+    sliderValue,
+    sliderStatus,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // 1. Audit Kontras Warna WCAG 2.1 (>= 4.5:1)
 // ---------------------------------------------------------------------------
@@ -385,6 +454,201 @@ widgets:
   store.set("dev", { val: 99, active: false });
   assert.equal(statVal.textContent, "42", "Nilai elemen lama tidak boleh berubah setelah destroy()");
   assert.equal(container.children.length, 0, "Container harus tetap kosong");
+});
+
+// ---------------------------------------------------------------------------
+// 5. Widget kontrol interaktif: switch & slider
+// ---------------------------------------------------------------------------
+
+test("switch dan slider menyinkronkan nilai store ke DOM (termasuk min/max/step)", () => {
+  const { store, handle, switchInput, switchWrap, sliderInput, sliderValue } = mountControls();
+
+  // Nilai awal belum ada: switch unknown, slider memakai min.
+  assert.equal(switchWrap.dataset["state"], "unknown");
+  assert.equal(sliderInput.min, "0");
+  assert.equal(sliderInput.max, "100");
+  assert.equal(sliderInput.step, "5");
+  assert.equal(sliderInput.value, "0");
+
+  store.set("device", { power: true, level: 40 });
+  assert.equal(switchInput.checked, true);
+  assert.equal(switchWrap.dataset["state"], "on");
+  assert.equal(sliderInput.value, "40");
+  assert.equal(sliderValue.textContent, "40");
+
+  store.set("device", { power: false, level: 75 });
+  assert.equal(switchInput.checked, false);
+  assert.equal(switchWrap.dataset["state"], "off");
+  assert.equal(sliderInput.value, "75");
+  assert.equal(sliderValue.textContent, "75");
+
+  // Nilai numerik/teks juga dipetakan ke boolean.
+  store.set("device", { power: 1, level: 75 });
+  assert.equal(switchInput.checked, true);
+  store.set("device", { power: "off", level: 75 });
+  assert.equal(switchInput.checked, false);
+
+  handle.destroy();
+});
+
+test("interaksi switch & slider memanggil store.write dan menampilkan status pending", async () => {
+  const {
+    window,
+    store,
+    handle,
+    switchCard,
+    switchWrap,
+    switchInput,
+    switchStatus,
+    sliderCard,
+    sliderWrap,
+    sliderInput,
+    sliderValue,
+    sliderStatus,
+  } = mountControls();
+
+  store.set("device", { power: true, level: 40 });
+
+  const writes: Array<{ path: string; value: unknown }> = [];
+  let gate = deferred<void>();
+  const unregister = store.registerWriter("device", (binding, value) => {
+    writes.push({ path: binding.p.join("."), value });
+    return gate.promise;
+  });
+
+  // --- switch: toggle -> pending -> resolved ---
+  switchInput.checked = false;
+  switchInput.dispatchEvent(new window.Event("change"));
+  assert.deepEqual(writes.at(-1), { path: "power", value: false });
+  assert.equal(switchInput.disabled, true);
+  assert.equal(switchWrap.dataset["pending"], "true");
+  assert.equal(switchCard.dataset["write"], "pending");
+  assert.match(switchStatus.textContent ?? "", /menunggu konfirmasi/i);
+
+  gate.resolve();
+  await flush();
+  assert.equal(switchInput.disabled, false);
+  assert.equal(switchWrap.dataset["pending"], undefined);
+  assert.equal(switchCard.dataset["write"], undefined);
+  assert.equal(switchStatus.textContent, "");
+  assert.equal(switchInput.checked, false);
+
+  // --- slider: input hanya pratinjau label, change mengirim ke store ---
+  gate = deferred<void>();
+  sliderInput.value = "55";
+  sliderInput.dispatchEvent(new window.Event("input"));
+  assert.equal(sliderValue.textContent, "55");
+  assert.equal(sliderStatus.textContent, "");
+  assert.equal(sliderInput.disabled, false);
+  assert.equal(writes.length, 1);
+
+  sliderInput.dispatchEvent(new window.Event("change"));
+  assert.deepEqual(writes.at(-1), { path: "level", value: 55 });
+  assert.equal(writes.length, 2);
+  assert.equal(sliderInput.disabled, true);
+  assert.equal(sliderWrap.dataset["pending"], "true");
+  assert.equal(sliderCard.dataset["write"], "pending");
+  assert.match(sliderStatus.textContent ?? "", /menunggu konfirmasi/i);
+
+  gate.resolve();
+  await flush();
+  assert.equal(sliderInput.disabled, false);
+  assert.equal(sliderWrap.dataset["pending"], undefined);
+  assert.equal(sliderStatus.textContent, "");
+  assert.equal(sliderInput.value, "55");
+  assert.equal(sliderValue.textContent, "55");
+
+  unregister();
+  handle.destroy();
+});
+
+test("kegagalan store.write menampilkan error dan mengembalikan kontrol ke nilai store", async () => {
+  const {
+    window,
+    store,
+    handle,
+    switchCard,
+    switchWrap,
+    switchInput,
+    switchStatus,
+    sliderCard,
+    sliderInput,
+    sliderValue,
+    sliderStatus,
+  } = mountControls();
+
+  store.set("device", { power: true, level: 40 });
+  const unregister = store.registerWriter("device", () => Promise.reject(new Error("jaringan putus")));
+
+  // Switch: posisi kembali ke nilai store terakhir (true).
+  switchInput.checked = false;
+  switchInput.dispatchEvent(new window.Event("change"));
+  await flush();
+  assert.equal(switchInput.checked, true);
+  assert.equal(switchWrap.dataset["state"], "on");
+  assert.equal(switchWrap.dataset["pending"], undefined);
+  assert.equal(switchCard.dataset["write"], "error");
+  assert.match(switchStatus.textContent ?? "", /gagal mengirim/i);
+  assert.match(switchStatus.textContent ?? "", /jaringan putus/i);
+  assert.equal(switchStatus.dataset["kind"], "error");
+  assert.equal(switchInput.disabled, false);
+
+  // Slider: posisi kembali ke nilai store terakhir (40).
+  sliderInput.value = "85";
+  sliderInput.dispatchEvent(new window.Event("change"));
+  await flush();
+  assert.equal(sliderInput.value, "40");
+  assert.equal(sliderValue.textContent, "40");
+  assert.equal(sliderCard.dataset["write"], "error");
+  assert.match(sliderStatus.textContent ?? "", /gagal mengirim/i);
+  assert.equal(sliderStatus.dataset["kind"], "error");
+  assert.equal(sliderInput.disabled, false);
+
+  unregister();
+  handle.destroy();
+});
+
+test("destroy() melepas listener DOM dan subscription widget switch/slider", () => {
+  const {
+    window,
+    store,
+    handle,
+    switchCard,
+    switchInput,
+    switchStatus,
+    sliderCard,
+    sliderInput,
+    sliderValue,
+    sliderStatus,
+  } = mountControls();
+
+  store.set("device", { power: true, level: 40 });
+
+  let writes = 0;
+  const unregister = store.registerWriter("device", () => {
+    writes += 1;
+  });
+
+  handle.destroy();
+
+  // Subscription sudah dilepas: perubahan store tidak boleh mengubah DOM lama.
+  store.set("device", { power: false, level: 90 });
+  assert.equal(switchInput.checked, true);
+  assert.equal(sliderInput.value, "40");
+  assert.equal(sliderValue.textContent, "40");
+  assert.equal(switchStatus.textContent, "");
+  assert.equal(sliderStatus.textContent, "");
+
+  // Listener DOM sudah dilepas: event baru tidak boleh memicu penulisan.
+  switchInput.checked = false;
+  switchInput.dispatchEvent(new window.Event("change"));
+  sliderInput.value = "90";
+  sliderInput.dispatchEvent(new window.Event("change"));
+  assert.equal(writes, 0);
+  assert.equal(switchCard.dataset["write"], undefined);
+  assert.equal(sliderCard.dataset["write"], undefined);
+
+  unregister();
 });
 
 test("destroy() menghentikan background source runner (mock polling)", async () => {

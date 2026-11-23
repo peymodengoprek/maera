@@ -48,6 +48,12 @@ function applyOutcome(ctx: WidgetContext, out: Outcome | undefined, caption?: HT
 
 const num = (v: unknown, fallback: number): number => (typeof v === "number" ? v : fallback);
 
+/** Pesan error tulis yang ramah untuk ditampilkan di widget kontrol. */
+function writeErrorMessage(error: unknown): string {
+  const detail = error instanceof Error ? error.message : String(error);
+  return detail ? `Gagal mengirim: ${detail}` : "Gagal mengirim nilai.";
+}
+
 /** Satuan: `unit` pada widget, jika tidak ada pakai `unit` dari data source. */
 function unitOf(ctx: WidgetContext): string {
   const own = ctx.node.props["unit"];
@@ -137,6 +143,212 @@ registerWidget("status", (ctx) => {
     wrap.dataset["state"] = state === null ? "unknown" : state ? "on" : "off";
     label.textContent = state === null ? EMPTY : state ? onText : offText;
   });
+});
+
+registerWidget("switch", (ctx) => {
+  const { doc, body, node, store } = ctx;
+  const b = node.bind;
+
+  const wrap = el(doc, "div", "maera-switch");
+  const labelEl = el(doc, "label", "maera-switch-label");
+  const input = doc.createElement("input");
+  input.type = "checkbox";
+  input.className = "maera-switch-input";
+  const labelText = node.props["label"];
+  const text = el(doc, "span", "maera-switch-text", typeof labelText === "string" ? labelText : "");
+  labelEl.append(input, text);
+
+  const status = el(doc, "p", "maera-control-status");
+  status.setAttribute("role", "status");
+  status.setAttribute("aria-live", "polite");
+  wrap.append(labelEl, status);
+  body.append(wrap);
+
+  if (!b) {
+    input.disabled = true;
+    return;
+  }
+
+  let storeValue: unknown = store.getBinding(b);
+  let displayValue: unknown = storeValue;
+  let pending = false;
+  let error = "";
+
+  const render = () => {
+    const state = toBool(displayValue);
+    input.checked = state === true;
+    input.disabled = pending;
+    wrap.dataset["state"] = state === null ? "unknown" : state ? "on" : "off";
+
+    if (pending) {
+      wrap.dataset["pending"] = "true";
+      ctx.card.dataset["write"] = "pending";
+      status.dataset["kind"] = "pending";
+      status.textContent = "Menunggu konfirmasi…";
+    } else if (error) {
+      delete wrap.dataset["pending"];
+      ctx.card.dataset["write"] = "error";
+      status.dataset["kind"] = "error";
+      status.textContent = error;
+    } else {
+      delete wrap.dataset["pending"];
+      delete ctx.card.dataset["write"];
+      delete status.dataset["kind"];
+      status.textContent = "";
+    }
+  };
+
+  const unsubscribe = store.subBinding(b, (v) => {
+    storeValue = v;
+    displayValue = v;
+    render();
+  });
+
+  const onChange = () => {
+    if (pending) return;
+    const next = input.checked;
+    displayValue = next;
+    pending = true;
+    error = "";
+    render();
+
+    void store.write(b, next).then(
+      () => {
+        pending = false;
+        if (toBool(storeValue) !== next) displayValue = next;
+        render();
+      },
+      (e: unknown) => {
+        pending = false;
+        error = writeErrorMessage(e);
+        displayValue = storeValue;
+        render();
+      },
+    );
+  };
+
+  input.addEventListener("change", onChange);
+  render();
+
+  return () => {
+    input.removeEventListener("change", onChange);
+    unsubscribe();
+    delete ctx.card.dataset["write"];
+  };
+});
+
+registerWidget("slider", (ctx) => {
+  const { doc, body, node, store } = ctx;
+  const b = node.bind;
+
+  const min = num(node.props["min"], 0);
+  const configuredMax = num(node.props["max"], min + 100);
+  const max = configuredMax > min ? configuredMax : min + 1;
+  const step = num(node.props["step"], 1) > 0 ? num(node.props["step"], 1) : 1;
+
+  const wrap = el(doc, "div", "maera-slider");
+  const head = el(doc, "div", "maera-slider-head");
+  const valueLabel = el(doc, "span", "maera-slider-value");
+  const input = doc.createElement("input");
+  input.type = "range";
+  input.className = "maera-slider-input";
+  input.min = String(min);
+  input.max = String(max);
+  input.step = String(step);
+  input.setAttribute("aria-label", node.title ?? "Slider");
+  head.append(valueLabel);
+  const status = el(doc, "p", "maera-control-status");
+  status.setAttribute("role", "status");
+  status.setAttribute("aria-live", "polite");
+  wrap.append(head, input, status);
+  body.append(wrap);
+
+  if (!b) {
+    input.disabled = true;
+    return;
+  }
+
+  const asNumber = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
+  const clamp = (n: number): number => Math.min(max, Math.max(min, n));
+
+  let storeValue = asNumber(store.getBinding(b));
+  let displayValue = storeValue;
+  let pending = false;
+  let error = "";
+
+  const render = () => {
+    input.value = String(clamp(displayValue ?? min));
+    valueLabel.textContent = displayValue === null ? EMPTY : formatValue(displayValue);
+    input.disabled = pending;
+
+    if (pending) {
+      wrap.dataset["pending"] = "true";
+      ctx.card.dataset["write"] = "pending";
+      status.dataset["kind"] = "pending";
+      status.textContent = "Menunggu konfirmasi…";
+    } else if (error) {
+      delete wrap.dataset["pending"];
+      ctx.card.dataset["write"] = "error";
+      status.dataset["kind"] = "error";
+      status.textContent = error;
+    } else {
+      delete wrap.dataset["pending"];
+      delete ctx.card.dataset["write"];
+      delete status.dataset["kind"];
+      status.textContent = "";
+    }
+  };
+
+  const unsubscribe = store.subBinding(b, (v) => {
+    storeValue = asNumber(v);
+    displayValue = storeValue;
+    render();
+  });
+
+  const onInput = () => {
+    if (pending) return;
+    const next = Number(input.value);
+    if (!Number.isFinite(next)) return;
+    error = "";
+    displayValue = next;
+    render();
+  };
+
+  const onChange = () => {
+    if (pending) return;
+    const next = Number(input.value);
+    if (!Number.isFinite(next)) return;
+
+    displayValue = next;
+    pending = true;
+    error = "";
+    render();
+
+    void store.write(b, next).then(
+      () => {
+        pending = false;
+        if (storeValue !== next) displayValue = next;
+        render();
+      },
+      (e: unknown) => {
+        pending = false;
+        error = writeErrorMessage(e);
+        displayValue = storeValue;
+        render();
+      },
+    );
+  };
+
+  input.addEventListener("input", onInput);
+  input.addEventListener("change", onChange);
+  render();
+
+  return () => {
+    input.removeEventListener("input", onInput);
+    input.removeEventListener("change", onChange);
+    unsubscribe();
+    delete ctx.card.dataset["write"];
+  };
 });
 
 registerWidget("chart", (ctx) => {

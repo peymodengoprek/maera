@@ -54,6 +54,36 @@ export const CSS = `
 .maera-chart-meta{display:flex;justify-content:space-between;gap:12px;margin-top:8px;font-size:.8rem;color:var(--m-muted);font-variant-numeric:tabular-nums}
 .maera-chart-now{color:var(--m-text);font-weight:600}
 .maera-text{margin:0;line-height:1.5}
+.maera-widget[data-write="pending"]{border-color:var(--m-info)}
+.maera-widget[data-write="error"]{border-color:var(--m-danger)}
+.maera-switch{display:flex;flex-direction:column;gap:8px}
+.maera-switch-label{display:flex;align-items:center;gap:12px;cursor:pointer;font-weight:600}
+.maera-switch-input{
+  appearance:none;-webkit-appearance:none;position:relative;flex:none;
+  width:46px;height:26px;margin:0;border-radius:999px;cursor:pointer;
+  background:var(--m-track);border:1px solid var(--m-border);
+  transition:background .2s ease,border-color .2s ease;
+}
+.maera-switch-input::after{
+  content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;
+  background:var(--m-surface);border:1px solid var(--m-border);
+  transition:transform .2s ease,background .2s ease;
+}
+.maera-switch-input:checked{background:var(--m-accent);border-color:var(--m-accent)}
+.maera-switch-input:checked::after{transform:translateX(20px);background:var(--m-surface)}
+.maera-switch-input:focus-visible{outline:2px solid var(--m-accent);outline-offset:2px}
+.maera-switch-input:disabled{cursor:progress;opacity:.65}
+.maera-switch[data-state="unknown"] .maera-switch-label{color:var(--m-muted)}
+.maera-slider{display:flex;flex-direction:column;gap:8px}
+.maera-slider-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.maera-slider-value{font-size:1.35rem;font-weight:650;font-variant-numeric:tabular-nums;color:var(--m-text)}
+.maera-slider-input{width:100%;margin:0;accent-color:var(--m-accent);cursor:pointer}
+.maera-slider-input:focus-visible{outline:2px solid var(--m-accent);outline-offset:2px}
+.maera-slider-input:disabled{cursor:progress;opacity:.65}
+.maera-control-status{margin:0;font-size:.82rem;font-weight:600;color:var(--m-muted);min-height:1.1em}
+.maera-control-status:empty{display:none}
+.maera-control-status[data-kind="pending"]{color:var(--m-info)}
+.maera-control-status[data-kind="error"]{color:var(--m-danger)}
 .maera-unsupported{margin:0;color:var(--m-muted);font-size:.85rem;font-style:italic}
 @media (max-width:640px){.maera-widget{grid-column:1/-1}.maera{padding:16px}}
 `;
