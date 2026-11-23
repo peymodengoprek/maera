@@ -162,6 +162,140 @@ test("state dan steps tidak boleh bersamaan; widget lain menolaknya", () => {
   assert.equal(chart.errors[0]!.code, "UNSUPPORTED");
 });
 
+// ── switch & slider ───────────────────────────────────────────────
+
+test("widget switch terkompilasi dengan label opsional", () => {
+  const r = compile(
+    withWidget(
+      "  - type: switch\n    bind: temp.value\n    label: Pompa\n  - type: switch\n    bind: temp.value\n",
+    ),
+  );
+  assert.equal(r.ok, true);
+  if (!r.ok) return;
+  assert.equal(r.ast.widgets[0]!.type, "switch");
+  assert.deepEqual(r.ast.widgets[0]!.bind, { s: "temp", p: ["value"] });
+  assert.equal(r.ast.widgets[0]!.props["label"], "Pompa");
+  assert.equal(r.ast.widgets[1]!.props["label"], undefined);
+});
+
+test("widget switch wajib bind", () => {
+  const r = compile(withWidget("  - type: switch\n    label: X\n"));
+  assert.equal(r.ok, false);
+  assert.equal(r.errors[0]!.code, "MISSING_FIELD");
+  assert.equal(r.errors[0]!.path, "widgets[0].bind");
+});
+
+test("widget switch menolak kunci asing dengan nomor baris", () => {
+  const src = withWidget("  - type: switch\n    bind: temp.value\n    warna: merah\n");
+  const r = compile(src);
+  assert.equal(r.ok, false);
+  const e = r.errors.find((x) => x.code === "UNKNOWN_KEY")!;
+  assert.ok(e);
+  assert.equal(e.path, "widgets[0].warna");
+  assert.equal(e.line, 9);
+  assert.match(src.split("\n")[e.line! - 1]!, /warna: merah/);
+});
+
+test("widget slider terkompilasi dengan min/max/step", () => {
+  const r = compile(
+    withWidget(
+      "  - type: slider\n    bind: temp.value\n    min: 0\n    max: 100\n    step: 5\n",
+    ),
+  );
+  assert.equal(r.ok, true);
+  if (!r.ok) return;
+  const w = r.ast.widgets[0]!;
+  assert.equal(w.type, "slider");
+  assert.deepEqual(w.bind, { s: "temp", p: ["value"] });
+  assert.equal(w.props["min"], 0);
+  assert.equal(w.props["max"], 100);
+  assert.equal(w.props["step"], 5);
+});
+
+test("widget slider wajib bind dan validasi min < max serta step > 0", () => {
+  const r = compile(
+    withWidget(
+      "  - type: slider\n    min: 10\n    max: 5\n    step: 0\n",
+    ),
+  );
+  assert.equal(r.ok, false);
+  const paths = r.errors.map((e) => e.path);
+  assert.ok(paths.includes("widgets[0].bind"));
+  assert.ok(paths.includes("widgets[0].min"));
+  assert.ok(paths.includes("widgets[0].step"));
+  const codes = r.errors.map((e) => e.code);
+  assert.ok(codes.includes("MISSING_FIELD"));
+  assert.ok(codes.includes("OUT_OF_RANGE"));
+});
+
+test("widget slider menolak kunci asing dan tipe non-numerik", () => {
+  const r = compile(
+    withWidget("  - type: slider\n    bind: temp.value\n    min: abc\n    foo: 1\n"),
+  );
+  assert.equal(r.ok, false);
+  const byPath = Object.fromEntries(r.errors.map((e) => [e.path, e]));
+  assert.equal(byPath["widgets[0].min"]?.code, "INVALID_TYPE");
+  assert.equal(byPath["widgets[0].foo"]?.code, "UNKNOWN_KEY");
+});
+
+test("switch & slider tidak mendukung state/steps", () => {
+  const r = compile(
+    withWidget("  - type: switch\n    bind: temp.value\n    state: { threshold: 1, above: A }\n"),
+  );
+  assert.equal(r.ok, false);
+  assert.equal(r.errors[0]!.code, "UNSUPPORTED");
+});
+
+test("opsi tulis source rest & mqtt diterima dan divalidasi", () => {
+  const ok = compile(`app:
+  title: T
+sources:
+  api:
+    type: rest
+    url: http://localhost/api
+    write_url: http://localhost/api/pump
+    write_method: put
+  mq:
+    type: mqtt
+    url: wss://localhost/mqtt
+    topic: in/topic
+    write_topic: out/topic
+widgets: []
+`);
+  assert.equal(ok.ok, true);
+  if (!ok.ok) return;
+  const rest = ok.ast.sources["api"]!;
+  assert.equal(rest.type, "rest");
+  if (rest.type === "rest") {
+    assert.equal(rest.write_url, "http://localhost/api/pump");
+    assert.equal(rest.write_method, "PUT");
+  }
+  const mq = ok.ast.sources["mq"]!;
+  if (mq.type === "mqtt") assert.equal(mq.write_topic, "out/topic");
+
+  const bad = compile(`app:
+  title: T
+sources:
+  api:
+    type: rest
+    url: http://localhost/api
+    write_url: ftp://x
+    write_method: DELETE
+  mq:
+    type: mqtt
+    url: wss://localhost/mqtt
+    topic: in/topic
+    write_topic: ""
+widgets: []
+`);
+  assert.equal(bad.ok, false);
+  const byPath = Object.fromEntries(bad.errors.map((e) => [e.path, e]));
+  assert.equal(byPath["sources.api.write_url"]?.code, "INVALID_TYPE");
+  assert.equal(byPath["sources.api.write_url"]?.line, 7);
+  assert.equal(byPath["sources.api.write_method"]?.code, "INVALID_TYPE");
+  assert.equal(byPath["sources.mq.write_topic"]?.code, "INVALID_TYPE");
+});
+
 test("kunci tidak dikenal pada level app ditolak dengan nomor baris dan pilihan valid", () => {
   const src = "app:\n  title: Test\n  titel: SalahKetik\n  colums: 12\nsources:\n  temp:\n    type: mock\nwidgets: []\n";
   const r = compile(src);

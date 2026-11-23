@@ -258,3 +258,102 @@ test("runner mqtt: handshake, subscribe, publish path & primitif, ping, dan reco
 
   wss.close();
 });
+
+test("runner websocket: store.write mengirim JSON; reject saat belum terhubung", async () => {
+  const wss = new WebSocketServer({ port: 0 });
+  const port = (wss.address() as { port: number }).port;
+
+  const received: string[] = [];
+  let activeSocket: any;
+  wss.on("connection", (ws) => {
+    activeSocket = ws;
+    ws.on("message", (data: Buffer) => received.push(data.toString("utf8")));
+    ws.send(JSON.stringify({ value: 0 }));
+  });
+
+  const ast: Pick<maeraAST, "sources"> = {
+    sources: {
+      ws: { type: "websocket", url: `ws://127.0.0.1:${port}`, line: 1 },
+    },
+  };
+
+  const store = createStore();
+  const runner = startSources(ast, store, {
+    WebSocket: WsClient as unknown as typeof globalThis.WebSocket,
+  });
+
+  await waitFor(() => store.get("ws")?.["value"] === 0);
+  await store.write({ s: "ws", p: ["value"] }, 7);
+  await waitFor(() => received.length === 1);
+  assert.deepEqual(JSON.parse(received[0]!), { path: "value", value: 7 });
+
+  runner.stop();
+  await assert.rejects(
+    () => store.write({ s: "ws", p: ["value"] }, 8),
+    /tidak mendukung operasi tulis/,
+  );
+
+  wss.close();
+});
+
+test("runner mqtt: store.write mengirim PUBLISH ke write_topic; reject saat belum terhubung", async () => {
+  const wss = new WebSocketServer({
+    port: 0,
+    handleProtocols: (protocols) => (protocols.has("mqtt") ? "mqtt" : false),
+  });
+  const port = (wss.address() as { port: number }).port;
+
+  let activeSocket: any;
+  let subscribed = false;
+  const publishes: Array<{ topic: string; payload: string }> = [];
+
+  wss.on("connection", (ws) => {
+    activeSocket = ws;
+    ws.on("message", (data: Buffer) => {
+      const type = data[0]! >> 4;
+      if (type === 1) {
+        ws.send(Buffer.from([0x20, 0x02, 0x00, 0x00]));
+      } else if (type === 8) {
+        ws.send(Buffer.from([0x90, 0x03, data[2]!, data[3]!, 0x00]));
+        subscribed = true;
+      } else if (type === 3) {
+        const topicLen = (data[2]! << 8) | data[3]!;
+        const topic = data.subarray(4, 4 + topicLen).toString("utf8");
+        const payload = data.subarray(4 + topicLen).toString("utf8");
+        publishes.push({ topic, payload });
+      }
+    });
+  });
+
+  const ast: Pick<maeraAST, "sources"> = {
+    sources: {
+      mq: {
+        type: "mqtt",
+        url: `ws://127.0.0.1:${port}`,
+        topic: "in/topic",
+        write_topic: "out/topic",
+        line: 1,
+      },
+    },
+  };
+
+  const store = createStore();
+  const runner = startSources(ast, store, {
+    WebSocket: WsClient as unknown as typeof globalThis.WebSocket,
+    random: () => 0,
+  });
+
+  await waitFor(() => subscribed);
+  await store.write({ s: "mq", p: ["value"] }, "ON");
+  await waitFor(() => publishes.length === 1);
+  assert.equal(publishes[0]!.topic, "out/topic");
+  assert.deepEqual(JSON.parse(publishes[0]!.payload), { path: "value", value: "ON" });
+
+  runner.stop();
+  await assert.rejects(
+    () => store.write({ s: "mq", p: ["value"] }, "OFF"),
+    /tidak mendukung operasi tulis/,
+  );
+
+  wss.close();
+});

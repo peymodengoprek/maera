@@ -36,6 +36,10 @@ export interface RestSource {
   /** Jalur titik ke bagian respons JSON yang diambil, mis. `data.temp` */
   path?: string;
   headers?: Record<string, string>;
+  /** URL tujuan untuk operasi tulis (default menggunakan `url`) */
+  write_url?: string;
+  /** Metode HTTP untuk operasi tulis (default `"POST"`) */
+  write_method?: string;
   line: number | null;
 }
 
@@ -57,6 +61,8 @@ export interface MqttSource {
   topic: string;
   /** Jalur titik ke bagian payload JSON yang diambil, mis. `data.temp` */
   path?: string;
+  /** Topik tujuan untuk operasi tulis/publish (default menggunakan `topic`) */
+  write_topic?: string;
   /** Interval reconnect awal dalam ms (default 1000) */
   reconnect_ms?: number;
   /** Batas maksimum interval reconnect dalam ms (default 30000) */
@@ -66,7 +72,14 @@ export interface MqttSource {
 
 export type SourceNode = MockSource | RestSource | WebSocketSource | MqttSource;
 
-export type WidgetType = "stat" | "gauge" | "chart" | "status" | "text";
+export type WidgetType =
+  | "stat"
+  | "gauge"
+  | "chart"
+  | "status"
+  | "text"
+  | "switch"
+  | "slider";
 
 export type StatusLevel = "ok" | "info" | "warning" | "danger";
 
@@ -138,3 +151,4 @@ export interface HistoryEntry {
 
 export type Listener = (data: SourceData, source: string) => void;
 export type Unsubscribe = () => void;
+export type WriteHandler = (binding: Binding, value: unknown) => Promise<void> | void;

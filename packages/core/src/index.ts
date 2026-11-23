@@ -26,4 +26,5 @@ export type {
   WebSocketSource,
   WidgetNode,
   WidgetType,
+  WriteHandler,
 } from "./types.js";

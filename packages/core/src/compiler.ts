@@ -36,6 +36,11 @@ const WIDGET_SPECS: Record<
   },
   status: { bind: "required", props: { on: "string", off: "string" } },
   text: { bind: "none", props: { content: "string" } },
+  switch: { bind: "required", props: { label: "string" } },
+  slider: {
+    bind: "required",
+    props: { min: "number", max: "number", step: "number" },
+  },
 };
 
 export const WIDGET_TYPES = Object.keys(WIDGET_SPECS) as WidgetType[];
@@ -44,7 +49,15 @@ const CONDITIONAL_WIDGETS = new Set<string>(["status", "gauge", "stat"]);
 const CONDITIONAL_KEYS = new Set(["state", "steps"]);
 const APP_KEYS = new Set(["title", "theme", "columns"]);
 const SOURCE_MOCK_KEYS = new Set(["type", "interval", "min", "max", "unit"]);
-const SOURCE_REST_KEYS = new Set(["type", "url", "interval", "path", "headers"]);
+const SOURCE_REST_KEYS = new Set([
+  "type",
+  "url",
+  "interval",
+  "path",
+  "headers",
+  "write_url",
+  "write_method",
+]);
 const SOURCE_WEBSOCKET_KEYS = new Set([
   "type",
   "url",
@@ -57,6 +70,7 @@ const SOURCE_MQTT_KEYS = new Set([
   "url",
   "topic",
   "path",
+  "write_topic",
   "reconnect_ms",
   "max_reconnect_ms",
 ]);
@@ -392,6 +406,34 @@ function validateSources(
         );
         continue;
       }
+      const writeUrl = def["write_url"];
+      if (writeUrl !== undefined) {
+        if (typeof writeUrl !== "string" || !/^https?:\/\//i.test(writeUrl)) {
+          err(
+            "INVALID_TYPE",
+            [...base, "write_url"],
+            "`write_url` harus berupa teks diawali http:// atau https://.",
+          );
+          ok = false;
+        }
+      }
+      const writeMethod = def["write_method"];
+      let normalizedMethod: string | undefined;
+      if (writeMethod !== undefined) {
+        if (
+          typeof writeMethod !== "string" ||
+          !["POST", "PUT", "PATCH"].includes(writeMethod.toUpperCase())
+        ) {
+          err(
+            "INVALID_TYPE",
+            [...base, "write_method"],
+            "`write_method` harus berupa POST, PUT, atau PATCH.",
+          );
+          ok = false;
+        } else {
+          normalizedMethod = writeMethod.toUpperCase();
+        }
+      }
       if (!ok) continue;
       out[name] = {
         type: "rest",
@@ -399,6 +441,8 @@ function validateSources(
         interval: (def["interval"] as number | undefined) ?? 5000,
         ...(typeof path === `string` && path ? { path } : {}),
         ...(headers ? { headers: headers as Record<string, string> } : {}),
+        ...(typeof writeUrl === "string" ? { write_url: writeUrl } : {}),
+        ...(normalizedMethod ? { write_method: normalizedMethod } : {}),
         line,
       };
     } else if (type === "websocket") {
@@ -478,12 +522,25 @@ function validateSources(
         );
         ok = false;
       }
+      const writeTopic = def["write_topic"];
+      if (
+        writeTopic !== undefined &&
+        (typeof writeTopic !== "string" || writeTopic.trim() === "")
+      ) {
+        err(
+          "INVALID_TYPE",
+          [...base, "write_topic"],
+          "'write_topic' harus berupa teks tidak kosong.",
+        );
+        ok = false;
+      }
       if (!ok) continue;
       out[name] = {
         type: "mqtt",
         url: url as string,
         topic: topic as string,
         ...(typeof path === `string` && path ? { path } : {}),
+        ...(typeof writeTopic === "string" ? { write_topic: writeTopic } : {}),
         ...(isNum(def["reconnect_ms"]) ? { reconnect_ms: def["reconnect_ms"] } : {}),
         ...(isNum(def["max_reconnect_ms"]) ? { max_reconnect_ms: def["max_reconnect_ms"] } : {}),
         line,
@@ -608,6 +665,14 @@ function validateWidgets(
         "OUT_OF_RANGE",
         [...base, "min"],
         "'min' harus lebih kecil dari 'max'.",
+      );
+      ok = false;
+    }
+    if (type === "slider" && isNum(props["step"]) && props["step"] <= 0) {
+      err(
+        "OUT_OF_RANGE",
+        [...base, "step"],
+        "'step' pada widget 'slider' harus lebih besar dari 0.",
       );
       ok = false;
     }

@@ -60,8 +60,7 @@ test("mock source: emisi langsung, tetap dalam rentang, berhenti saat stop()", a
   assert.equal(store.history("t").length, n, "tidak boleh ada emisi setelah stop()");
 });
 
-test("rest source: ambil path, bungkus nilai primitif, lapor error, lanjut polling", async () => {
-  const r = compile("app:\n  title: T\nsources:\n  p:\n    type: rest\n    url: http://x/api\n    interval: 50\n    path: data.pump\nwidgets: []\n");
+test("rest source: ambil path, bungkus nilai primitif, lapor error, lanjut polling", async () => {  const r = compile("app:\n  title: T\nsources:\n  p:\n    type: rest\n    url: http://x/api\n    interval: 50\n    path: data.pump\nwidgets: []\n");
   assert.ok(r.ok);
   if (!r.ok) return;
   let calls = 0;
@@ -82,3 +81,78 @@ test("rest source: ambil path, bungkus nilai primitif, lapor error, lanjut polli
   await new Promise((res) => setTimeout(res, 120));
   assert.equal(calls, after, "polling berhenti setelah stop()");
 });
+// --- store.write() ---
+
+test("write: reject jika source tidak punya writer", async () => {
+  const s = createStore();
+  await assert.rejects(
+    () => s.write({ s: "ghost", p: ["value"] }, 1),
+    /tidak mendukung operasi tulis/,
+  );
+});
+
+test("write: memanggil writer terdaftar dan unsubscribe melepasnya", async () => {
+  const s = createStore();
+  const calls: Array<[string[], unknown]> = [];
+  const off = s.registerWriter("dev", (b, v) => {
+    calls.push([b.p, v]);
+  });
+  await s.write({ s: "dev", p: ["value"] }, true);
+  assert.deepEqual(calls, [[["value"], true]]);
+  off();
+  await assert.rejects(() => s.write({ s: "dev", p: ["value"] }, false));
+});
+
+test("write: error dari writer diteruskan sebagai rejection", async () => {
+  const s = createStore();
+  s.registerWriter("dev", async () => {
+    throw new Error("terputus");
+  });
+  await assert.rejects(
+    () => s.write({ s: "dev", p: ["value"] }, 1),
+    /terputus/,
+  );
+});
+
+test("write mock: memperbarui nilai binding di store", async () => {
+  const r = compile("app:\n  title: T\nsources:\n  t:\n    type: mock\n    interval: 50\nwidgets: []\n");
+  assert.ok(r.ok);
+  if (!r.ok) return;
+  const store = createStore();
+  const runner = startSources(r.ast, store);
+  await store.write({ s: "t", p: ["value"] }, 42);
+  assert.equal(store.getBinding({ s: "t", p: ["value"] }), 42);
+  runner.stop();
+  await assert.rejects(() => store.write({ s: "t", p: ["value"] }, 1));
+});
+
+test("write rest: POST JSON default, write_url/write_method, reject saat gagal", async () => {
+  const r = compile("app:\n  title: T\nsources:\n  api:\n    type: rest\n    url: http://x/api\n    write_url: http://x/act\n    write_method: put\n    interval: 100000\nwidgets: []\n");
+  assert.ok(r.ok);
+  if (!r.ok) return;
+  const requests: Array<{ url: string; init: RequestInit }> = [];
+  const fakeFetch = (async (url: string, init: RequestInit) => {
+    requests.push({ url, init });
+    return { ok: true, status: 200, json: async () => ({}) };
+  }) as unknown as typeof fetch;
+  const store = createStore();
+  const runner = startSources(r.ast, store, { fetch: fakeFetch });
+  await store.write({ s: "api", p: ["value"] }, true);
+  const req = requests[requests.length - 1]!;
+  assert.equal(req.url, "http://x/act");
+  assert.equal(req.init.method, "PUT");
+  assert.deepEqual(JSON.parse(req.init.body as string), { path: "value", value: true });
+  runner.stop();
+
+  const failFetch = (async () => ({ ok: false, status: 500 })) as unknown as typeof fetch;
+  const store2 = createStore();
+  const runner2 = startSources(r.ast, store2, { fetch: failFetch });
+  await assert.rejects(
+    () => store2.write({ s: "api", p: ["value"] }, 1),
+    /HTTP 500/,
+  );
+  runner2.stop();
+  await assert.rejects(() => store2.write({ s: "api", p: ["value"] }, 1));
+});
+
+

@@ -1,4 +1,11 @@
-import type { Binding, HistoryEntry, Listener, SourceData, Unsubscribe } from "./types.js";
+import type {
+  Binding,
+  HistoryEntry,
+  Listener,
+  SourceData,
+  Unsubscribe,
+  WriteHandler,
+} from "./types.js";
 
 export interface StoreOptions {
   /** Maksimum entri riwayat per source (default 100) */
@@ -27,6 +34,7 @@ export class Store {
   readonly #latest = new Map<string, SourceData>();
   readonly #history = new Map<string, HistoryEntry[]>();
   readonly #listeners = new Map<string, Set<Listener>>();
+  readonly #writers = new Map<string, WriteHandler>();
   readonly #limit: number;
   readonly #now: () => number;
 
@@ -94,11 +102,33 @@ export class Store {
     });
   }
 
-  /** Hapus semua data & subscriber. */
+  /** Daftarkan handler operasi tulis untuk sebuah source. */
+  registerWriter(source: string, fn: WriteHandler): Unsubscribe {
+    this.#writers.set(source, fn);
+    return () => {
+      if (this.#writers.get(source) === fn) {
+        this.#writers.delete(source);
+      }
+    };
+  }
+
+  /** Kirim nilai baru ke source melalui writer yang terdaftar. */
+  async write(b: Binding, value: unknown): Promise<void> {
+    const handler = this.#writers.get(b.s);
+    if (!handler) {
+      throw new Error(
+        `Source '${b.s}' tidak mendukung operasi tulis atau belum aktif.`,
+      );
+    }
+    await handler(b, value);
+  }
+
+  /** Hapus semua data, subscriber, dan writer. */
   clear(): void {
     this.#latest.clear();
     this.#history.clear();
     this.#listeners.clear();
+    this.#writers.clear();
   }
 }
 

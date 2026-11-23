@@ -45,6 +45,27 @@ export function startSources(
   return { stop: () => stoppers.forEach((s) => s()) };
 }
 
+function setPath(
+  data: SourceData | undefined,
+  path: readonly string[],
+  value: unknown,
+): SourceData {
+  const root: SourceData = data ? { ...data } : {};
+  let cur: Record<string, unknown> = root;
+  for (let i = 0; i < path.length - 1; i++) {
+    const key = path[i]!;
+    const next = cur[key];
+    cur[key] =
+      next !== null && typeof next === "object" && !Array.isArray(next)
+        ? { ...(next as Record<string, unknown>) }
+        : {};
+    cur = cur[key] as Record<string, unknown>;
+  }
+  const leaf = path[path.length - 1];
+  if (leaf !== undefined) cur[leaf] = value;
+  return root;
+}
+
 /** Random walk di dalam [min, max]; emisi pertama langsung terjadi. */
 function runMock(
   name: string,
@@ -64,9 +85,24 @@ function runMock(
     store.set(name, data);
   };
 
+  const unregisterWriter = store.registerWriter(name, (binding, val) => {
+    const next = setPath(store.get(name), binding.p, val);
+    if (
+      binding.p.length === 1 &&
+      binding.p[0] === "value" &&
+      typeof val === "number"
+    ) {
+      value = val;
+    }
+    store.set(name, next);
+  });
+
   tick();
   const id = setInterval(tick, def.interval);
-  return () => clearInterval(id);
+  return () => {
+    clearInterval(id);
+    unregisterWriter();
+  };
 }
 
 /** Polling GET berurutan (tanpa request tumpang-tindih). */
@@ -106,9 +142,27 @@ function runRest(
     }
   };
 
+  const unregisterWriter = store.registerWriter(name, async (binding, val) => {
+    if (stopped) {
+      throw new Error(`Source REST '${name}' sudah dihentikan.`);
+    }
+    const targetUrl = def.write_url ?? def.url;
+    const method = (def.write_method ?? "POST").toUpperCase();
+    const res = await doFetch(targetUrl, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        ...(def.headers ?? {}),
+      },
+      body: JSON.stringify({ path: binding.p.join("."), value: val }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status} dari ${targetUrl}`);
+  });
+
   void poll();
   return () => {
     stopped = true;
+    unregisterWriter();
     if (timer) clearTimeout(timer);
     ctrl?.abort();
   };
@@ -250,10 +304,18 @@ function runWebSocket(
     }, delay);
   };
 
+  const unregisterWriter = store.registerWriter(name, async (binding, val) => {
+    if (stopped || !currentWs || currentWs.readyState !== 1) {
+      throw new Error(`WebSocket '${name}' belum terhubung.`);
+    }
+    currentWs.send(JSON.stringify({ path: binding.p.join("."), value: val }));
+  });
+
   connect();
 
   return () => {
     stopped = true;
+    unregisterWriter();
     if (reconnectTimer !== undefined) {
       clearTimeout(reconnectTimer);
       reconnectTimer = undefined;
@@ -380,6 +442,23 @@ function buildPubackPacket(packetId: number): Uint8Array {
   return new Uint8Array([0x40, 0x02, (packetId >> 8) & 0xff, packetId & 0xff]);
 }
 
+function buildPublishPacket(topic: string, payload: string): Uint8Array {
+  const topicBytes = encodeUtf8String(topic);
+  const payloadBytes = textEncoder.encode(payload);
+  const remLen = topicBytes.length + payloadBytes.length;
+  const remLenBytes = encodeRemainingLength(remLen);
+  const packet = new Uint8Array(1 + remLenBytes.length + remLen);
+
+  let offset = 0;
+  packet[offset++] = 0x30; // PUBLISH (QoS 0)
+  packet.set(remLenBytes, offset);
+  offset += remLenBytes.length;
+  packet.set(topicBytes, offset);
+  offset += topicBytes.length;
+  packet.set(payloadBytes, offset);
+  return packet;
+}
+
 const PINGREQ_PACKET = new Uint8Array([0xc0, 0x00]);
 const DISCONNECT_PACKET = new Uint8Array([0xe0, 0x00]);
 
@@ -404,6 +483,7 @@ function runMqtt(
 ): () => void {
   const WsClass = opts.WebSocket ?? globalThis.WebSocket;
   let stopped = false;
+  let connected = false;
   let currentWs: WebSocket | undefined;
   let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
   let pingTimer: ReturnType<typeof setInterval> | undefined;
@@ -440,6 +520,7 @@ function runMqtt(
     const cleanup = () => {
       if (closed) return;
       closed = true;
+      connected = false;
       if (pingTimer !== undefined) {
         clearInterval(pingTimer);
         pingTimer = undefined;
@@ -542,6 +623,7 @@ function runMqtt(
           return;
         }
 
+        connected = true;
         attempt = 0;
         packetIdCounter = (packetIdCounter % 65535) + 1;
         try {
@@ -625,10 +707,21 @@ function runMqtt(
     }, delay);
   };
 
+  const unregisterWriter = store.registerWriter(name, async (binding, val) => {
+    if (stopped || !currentWs || currentWs.readyState !== 1 || !connected) {
+      throw new Error(`MQTT '${name}' belum terhubung.`);
+    }
+    const targetTopic = def.write_topic ?? def.topic;
+    const payload = JSON.stringify({ path: binding.p.join("."), value: val });
+    currentWs.send(buildPublishPacket(targetTopic, payload));
+  });
+
   connect();
 
   return () => {
     stopped = true;
+    connected = false;
+    unregisterWriter();
     if (reconnectTimer !== undefined) {
       clearTimeout(reconnectTimer);
       reconnectTimer = undefined;
