@@ -1,5 +1,8 @@
 {
   "files.associations": {
     "*.maera": "yaml"
+  },
+  "yaml.schemas": {
+    "./schema/maera.schema.json": ["*.maera"]
   }
 }

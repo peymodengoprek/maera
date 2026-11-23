@@ -1,0 +1,1122 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://maera.dev/schema/maera.schema.json",
+  "title": "Maera Dashboard",
+  "description": "Skema untuk file *.maera: satu file mendefinisikan satu dashboard IoT deklaratif.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "app",
+    "sources",
+    "widgets"
+  ],
+  "properties": {
+    "app": {
+      "type": "object",
+      "description": "Identitas dan tata letak dashboard.",
+      "additionalProperties": false,
+      "required": [
+        "title"
+      ],
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Judul dashboard."
+        },
+        "theme": {
+          "type": "string",
+          "default": "default",
+          "description": "Nama tema tampilan."
+        },
+        "columns": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 12,
+          "default": 12,
+          "description": "Jumlah kolom grid (1-12)."
+        }
+      }
+    },
+    "sources": {
+      "type": "object",
+      "description": "Peta nama source -> definisi source.",
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "Nilai acak berkala untuk demo tanpa backend.",
+            "additionalProperties": false,
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "mock",
+                "description": "Jenis source."
+              },
+              "interval": {
+                "type": "number",
+                "description": "Interval emisi data dalam milidetik (minimal 50).",
+                "minimum": 50,
+                "default": 1000
+              },
+              "min": {
+                "type": "number",
+                "description": "Nilai minimum acak.",
+                "default": 0
+              },
+              "max": {
+                "type": "number",
+                "description": "Nilai maksimum acak.",
+                "default": 100
+              },
+              "unit": {
+                "type": "string",
+                "description": "Satuan nilai, mis. \"°C\"."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Ambil data JSON dari endpoint HTTP secara polling.",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "url"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "rest",
+                "description": "Jenis source."
+              },
+              "url": {
+                "type": "string",
+                "description": "URL endpoint data (http:// atau https://).",
+                "pattern": "^https?:\\/\\/"
+              },
+              "interval": {
+                "type": "number",
+                "description": "Interval polling dalam milidetik (minimal 50).",
+                "minimum": 50,
+                "default": 5000
+              },
+              "path": {
+                "type": "string",
+                "description": "Jalur titik ke bagian respons JSON, mis. data.temp."
+              },
+              "headers": {
+                "type": "object",
+                "description": "Header HTTP tambahan (nama -> nilai).",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "write_url": {
+                "type": "string",
+                "description": "URL tujuan operasi tulis (default memakai url).",
+                "pattern": "^https?:\\/\\/"
+              },
+              "write_method": {
+                "type": "string",
+                "enum": [
+                  "POST",
+                  "PUT",
+                  "PATCH"
+                ],
+                "description": "Metode HTTP untuk operasi tulis (default POST)."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Terima data real-time dari koneksi WebSocket.",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "url"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "websocket",
+                "description": "Jenis source."
+              },
+              "url": {
+                "type": "string",
+                "description": "URL WebSocket (ws:// atau wss://).",
+                "pattern": "^wss?:\\/\\/"
+              },
+              "path": {
+                "type": "string",
+                "description": "Jalur titik ke bagian pesan JSON, mis. data.temp."
+              },
+              "reconnect_ms": {
+                "type": "number",
+                "description": "Interval reconnect awal dalam milidetik (minimal 50).",
+                "minimum": 50,
+                "default": 1000
+              },
+              "max_reconnect_ms": {
+                "type": "number",
+                "description": "Batas maksimum interval reconnect dalam milidetik.",
+                "minimum": 50,
+                "default": 30000
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Terima data real-time dari topik MQTT (WebSocket).",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "url",
+              "topic"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "mqtt",
+                "description": "Jenis source."
+              },
+              "url": {
+                "type": "string",
+                "description": "URL broker MQTT over WebSocket (ws:// atau wss://).",
+                "pattern": "^wss?:\\/\\/"
+              },
+              "topic": {
+                "type": "string",
+                "description": "Topik MQTT yang di-subscribe.",
+                "minLength": 1
+              },
+              "path": {
+                "type": "string",
+                "description": "Jalur titik ke bagian payload JSON, mis. data.temp."
+              },
+              "write_topic": {
+                "type": "string",
+                "description": "Topik tujuan publish (default memakai topic).",
+                "minLength": 1
+              },
+              "reconnect_ms": {
+                "type": "number",
+                "description": "Interval reconnect awal dalam milidetik (minimal 50).",
+                "minimum": 50,
+                "default": 1000
+              },
+              "max_reconnect_ms": {
+                "type": "number",
+                "description": "Batas maksimum interval reconnect dalam milidetik.",
+                "minimum": 50,
+                "default": 30000
+              }
+            }
+          }
+        ]
+      }
+    },
+    "widgets": {
+      "type": "array",
+      "description": "Daftar widget yang ditampilkan pada grid.",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "Angka besar dengan unit dan jumlah desimal.",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "bind"
+            ],
+            "properties": {
+              "type": {
+                "const": "stat",
+                "description": "Widget stat: Angka besar dengan unit dan jumlah desimal."
+              },
+              "title": {
+                "type": "string",
+                "description": "Judul widget (opsional)."
+              },
+              "span": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 12,
+                "default": 3,
+                "description": "Lebar widget dalam kolom grid (1-12)."
+              },
+              "bind": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][\\w-]*(\\.[A-Za-z_][\\w-]*)+$",
+                "description": "Binding ke data source dengan format `<source>.<path>`."
+              },
+              "unit": {
+                "type": "string",
+                "description": "Satuan yang ditampilkan, mis. \"°C\"."
+              },
+              "decimals": {
+                "type": "number",
+                "description": "Jumlah angka desimal."
+              },
+              "state": {
+                "type": "object",
+                "description": "Kondisi berbasis ambang batas tunggal.",
+                "additionalProperties": false,
+                "required": [
+                  "threshold"
+                ],
+                "anyOf": [
+                  {
+                    "required": [
+                      "above"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "below"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "equal"
+                    ]
+                  }
+                ],
+                "properties": {
+                  "threshold": {
+                    "type": "number",
+                    "description": "Batas pembanding (inklusif untuk above/equal)."
+                  },
+                  "above": {
+                    "description": "Teks saja atau objek { text, status }.",
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "anyOf": [
+                          {
+                            "required": [
+                              "text"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "status"
+                            ]
+                          }
+                        ],
+                        "properties": {
+                          "text": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Teks hasil."
+                          },
+                          "status": {
+                            "enum": [
+                              "ok",
+                              "info",
+                              "warning",
+                              "danger"
+                            ],
+                            "description": "Warna status: ok, info, warning, danger."
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "below": {
+                    "description": "Teks saja atau objek { text, status }.",
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "anyOf": [
+                          {
+                            "required": [
+                              "text"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "status"
+                            ]
+                          }
+                        ],
+                        "properties": {
+                          "text": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Teks hasil."
+                          },
+                          "status": {
+                            "enum": [
+                              "ok",
+                              "info",
+                              "warning",
+                              "danger"
+                            ],
+                            "description": "Warna status: ok, info, warning, danger."
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "equal": {
+                    "description": "Teks saja atau objek { text, status }.",
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "anyOf": [
+                          {
+                            "required": [
+                              "text"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "status"
+                            ]
+                          }
+                        ],
+                        "properties": {
+                          "text": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Teks hasil."
+                          },
+                          "status": {
+                            "enum": [
+                              "ok",
+                              "info",
+                              "warning",
+                              "danger"
+                            ],
+                            "description": "Warna status: ok, info, warning, danger."
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              "steps": {
+                "type": "array",
+                "description": "Daftar langkah; langkah dengan `at` terbesar yang cocok dipakai. Satu langkah tanpa `at` menjadi cadangan.",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "anyOf": [
+                    {
+                      "required": [
+                        "text"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "status"
+                      ]
+                    }
+                  ],
+                  "properties": {
+                    "at": {
+                      "type": "number",
+                      "description": "Ambang inklusif (value >= at). Kosongkan untuk cadangan."
+                    },
+                    "text": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Teks hasil."
+                    },
+                    "status": {
+                      "enum": [
+                        "ok",
+                        "info",
+                        "warning",
+                        "danger"
+                      ],
+                      "description": "Warna status: ok, info, warning, danger."
+                    }
+                  }
+                }
+              }
+            },
+            "allOf": [
+              {
+                "not": {
+                  "required": [
+                    "state",
+                    "steps"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "description": "Pengukur busur dengan rentang min/max.",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "bind"
+            ],
+            "properties": {
+              "type": {
+                "const": "gauge",
+                "description": "Widget gauge: Pengukur busur dengan rentang min/max."
+              },
+              "title": {
+                "type": "string",
+                "description": "Judul widget (opsional)."
+              },
+              "span": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 12,
+                "default": 3,
+                "description": "Lebar widget dalam kolom grid (1-12)."
+              },
+              "bind": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][\\w-]*(\\.[A-Za-z_][\\w-]*)+$",
+                "description": "Binding ke data source dengan format `<source>.<path>`."
+              },
+              "min": {
+                "type": "number",
+                "description": "Batas bawah rentang."
+              },
+              "max": {
+                "type": "number",
+                "description": "Batas atas rentang."
+              },
+              "unit": {
+                "type": "string",
+                "description": "Satuan yang ditampilkan, mis. \"°C\"."
+              },
+              "state": {
+                "type": "object",
+                "description": "Kondisi berbasis ambang batas tunggal.",
+                "additionalProperties": false,
+                "required": [
+                  "threshold"
+                ],
+                "anyOf": [
+                  {
+                    "required": [
+                      "above"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "below"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "equal"
+                    ]
+                  }
+                ],
+                "properties": {
+                  "threshold": {
+                    "type": "number",
+                    "description": "Batas pembanding (inklusif untuk above/equal)."
+                  },
+                  "above": {
+                    "description": "Teks saja atau objek { text, status }.",
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "anyOf": [
+                          {
+                            "required": [
+                              "text"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "status"
+                            ]
+                          }
+                        ],
+                        "properties": {
+                          "text": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Teks hasil."
+                          },
+                          "status": {
+                            "enum": [
+                              "ok",
+                              "info",
+                              "warning",
+                              "danger"
+                            ],
+                            "description": "Warna status: ok, info, warning, danger."
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "below": {
+                    "description": "Teks saja atau objek { text, status }.",
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "anyOf": [
+                          {
+                            "required": [
+                              "text"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "status"
+                            ]
+                          }
+                        ],
+                        "properties": {
+                          "text": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Teks hasil."
+                          },
+                          "status": {
+                            "enum": [
+                              "ok",
+                              "info",
+                              "warning",
+                              "danger"
+                            ],
+                            "description": "Warna status: ok, info, warning, danger."
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "equal": {
+                    "description": "Teks saja atau objek { text, status }.",
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "anyOf": [
+                          {
+                            "required": [
+                              "text"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "status"
+                            ]
+                          }
+                        ],
+                        "properties": {
+                          "text": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Teks hasil."
+                          },
+                          "status": {
+                            "enum": [
+                              "ok",
+                              "info",
+                              "warning",
+                              "danger"
+                            ],
+                            "description": "Warna status: ok, info, warning, danger."
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              "steps": {
+                "type": "array",
+                "description": "Daftar langkah; langkah dengan `at` terbesar yang cocok dipakai. Satu langkah tanpa `at` menjadi cadangan.",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "anyOf": [
+                    {
+                      "required": [
+                        "text"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "status"
+                      ]
+                    }
+                  ],
+                  "properties": {
+                    "at": {
+                      "type": "number",
+                      "description": "Ambang inklusif (value >= at). Kosongkan untuk cadangan."
+                    },
+                    "text": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Teks hasil."
+                    },
+                    "status": {
+                      "enum": [
+                        "ok",
+                        "info",
+                        "warning",
+                        "danger"
+                      ],
+                      "description": "Warna status: ok, info, warning, danger."
+                    }
+                  }
+                }
+              }
+            },
+            "allOf": [
+              {
+                "not": {
+                  "required": [
+                    "state",
+                    "steps"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "description": "Grafik tren dari riwayat nilai.",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "bind"
+            ],
+            "properties": {
+              "type": {
+                "const": "chart",
+                "description": "Widget chart: Grafik tren dari riwayat nilai."
+              },
+              "title": {
+                "type": "string",
+                "description": "Judul widget (opsional)."
+              },
+              "span": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 12,
+                "default": 3,
+                "description": "Lebar widget dalam kolom grid (1-12)."
+              },
+              "bind": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][\\w-]*(\\.[A-Za-z_][\\w-]*)+$",
+                "description": "Binding ke data source dengan format `<source>.<path>`."
+              },
+              "points": {
+                "type": "number",
+                "description": "Jumlah titik riwayat yang ditampilkan."
+              },
+              "unit": {
+                "type": "string",
+                "description": "Satuan yang ditampilkan, mis. \"°C\"."
+              },
+              "min": {
+                "type": "number",
+                "description": "Batas bawah rentang."
+              },
+              "max": {
+                "type": "number",
+                "description": "Batas atas rentang."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Indikator status on/off dengan label.",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "bind"
+            ],
+            "properties": {
+              "type": {
+                "const": "status",
+                "description": "Widget status: Indikator status on/off dengan label."
+              },
+              "title": {
+                "type": "string",
+                "description": "Judul widget (opsional)."
+              },
+              "span": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 12,
+                "default": 3,
+                "description": "Lebar widget dalam kolom grid (1-12)."
+              },
+              "bind": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][\\w-]*(\\.[A-Za-z_][\\w-]*)+$",
+                "description": "Binding ke data source dengan format `<source>.<path>`."
+              },
+              "on": {
+                "type": "string",
+                "description": "Teks saat nilai benar (on)."
+              },
+              "off": {
+                "type": "string",
+                "description": "Teks saat nilai salah (off)."
+              },
+              "state": {
+                "type": "object",
+                "description": "Kondisi berbasis ambang batas tunggal.",
+                "additionalProperties": false,
+                "required": [
+                  "threshold"
+                ],
+                "anyOf": [
+                  {
+                    "required": [
+                      "above"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "below"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "equal"
+                    ]
+                  }
+                ],
+                "properties": {
+                  "threshold": {
+                    "type": "number",
+                    "description": "Batas pembanding (inklusif untuk above/equal)."
+                  },
+                  "above": {
+                    "description": "Teks saja atau objek { text, status }.",
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "anyOf": [
+                          {
+                            "required": [
+                              "text"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "status"
+                            ]
+                          }
+                        ],
+                        "properties": {
+                          "text": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Teks hasil."
+                          },
+                          "status": {
+                            "enum": [
+                              "ok",
+                              "info",
+                              "warning",
+                              "danger"
+                            ],
+                            "description": "Warna status: ok, info, warning, danger."
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "below": {
+                    "description": "Teks saja atau objek { text, status }.",
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "anyOf": [
+                          {
+                            "required": [
+                              "text"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "status"
+                            ]
+                          }
+                        ],
+                        "properties": {
+                          "text": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Teks hasil."
+                          },
+                          "status": {
+                            "enum": [
+                              "ok",
+                              "info",
+                              "warning",
+                              "danger"
+                            ],
+                            "description": "Warna status: ok, info, warning, danger."
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "equal": {
+                    "description": "Teks saja atau objek { text, status }.",
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "anyOf": [
+                          {
+                            "required": [
+                              "text"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "status"
+                            ]
+                          }
+                        ],
+                        "properties": {
+                          "text": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Teks hasil."
+                          },
+                          "status": {
+                            "enum": [
+                              "ok",
+                              "info",
+                              "warning",
+                              "danger"
+                            ],
+                            "description": "Warna status: ok, info, warning, danger."
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              "steps": {
+                "type": "array",
+                "description": "Daftar langkah; langkah dengan `at` terbesar yang cocok dipakai. Satu langkah tanpa `at` menjadi cadangan.",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "anyOf": [
+                    {
+                      "required": [
+                        "text"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "status"
+                      ]
+                    }
+                  ],
+                  "properties": {
+                    "at": {
+                      "type": "number",
+                      "description": "Ambang inklusif (value >= at). Kosongkan untuk cadangan."
+                    },
+                    "text": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Teks hasil."
+                    },
+                    "status": {
+                      "enum": [
+                        "ok",
+                        "info",
+                        "warning",
+                        "danger"
+                      ],
+                      "description": "Warna status: ok, info, warning, danger."
+                    }
+                  }
+                }
+              }
+            },
+            "allOf": [
+              {
+                "not": {
+                  "required": [
+                    "state",
+                    "steps"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "description": "Teks statis tanpa binding.",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "content"
+            ],
+            "properties": {
+              "type": {
+                "const": "text",
+                "description": "Widget text: Teks statis tanpa binding."
+              },
+              "title": {
+                "type": "string",
+                "description": "Judul widget (opsional)."
+              },
+              "span": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 12,
+                "default": 3,
+                "description": "Lebar widget dalam kolom grid (1-12)."
+              },
+              "content": {
+                "type": "string",
+                "description": "Isi teks yang ditampilkan."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Sakelar interaktif yang menulis ke source.",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "bind"
+            ],
+            "properties": {
+              "type": {
+                "const": "switch",
+                "description": "Widget switch: Sakelar interaktif yang menulis ke source."
+              },
+              "title": {
+                "type": "string",
+                "description": "Judul widget (opsional)."
+              },
+              "span": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 12,
+                "default": 3,
+                "description": "Lebar widget dalam kolom grid (1-12)."
+              },
+              "bind": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][\\w-]*(\\.[A-Za-z_][\\w-]*)+$",
+                "description": "Binding ke data source dengan format `<source>.<path>`."
+              },
+              "label": {
+                "type": "string",
+                "description": "Label kontrol."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Slider interaktif yang menulis ke source.",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "bind"
+            ],
+            "properties": {
+              "type": {
+                "const": "slider",
+                "description": "Widget slider: Slider interaktif yang menulis ke source."
+              },
+              "title": {
+                "type": "string",
+                "description": "Judul widget (opsional)."
+              },
+              "span": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 12,
+                "default": 3,
+                "description": "Lebar widget dalam kolom grid (1-12)."
+              },
+              "bind": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][\\w-]*(\\.[A-Za-z_][\\w-]*)+$",
+                "description": "Binding ke data source dengan format `<source>.<path>`."
+              },
+              "min": {
+                "type": "number",
+                "description": "Batas bawah rentang."
+              },
+              "max": {
+                "type": "number",
+                "description": "Batas atas rentang."
+              },
+              "step": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "description": "Langkah kenaikan slider (harus > 0)."
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

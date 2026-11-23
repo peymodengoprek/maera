@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 const USAGE = `Pemakaian:
   maera dev [file.maera]                    Dev server dengan live reload (default)
   maera build [file.maera] [-o out.html]    Hasilkan 1 file HTML mandiri (default: dist/<nama>.html)
+  maera schema [-o file.json]               Tulis JSON Schema untuk *.maera (default: schema/maera.schema.json)
 
 Tanpa file, dicari index.maera lalu examples/index.maera di folder saat ini.
 Env untuk dev: PORT (3000), HOST (127.0.0.1)
@@ -18,6 +19,30 @@ function die(message: string, withUsage = false): never {
   process.exit(1);
 }
 
+async function runSchema(args: string[]): Promise<void> {
+  let outArg: string | undefined;
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i]!;
+    if (a === '-h' || a === '--help') {
+      console.log(USAGE);
+      return;
+    }
+    if (a === '-o' || a === '--out') {
+      outArg = args[++i];
+      if (!outArg) die('Opsi -o membutuhkan nama file.', true);
+    } else if (a.startsWith('-')) {
+      die(`Opsi tidak dikenal: '${a}'`, true);
+    } else {
+      die(`Argumen tidak dikenal: '${a}'`, true);
+    }
+  }
+  const { generateSchema } = await import('@maera/core');
+  const out = path.resolve(process.cwd(), outArg ?? path.join('schema', 'maera.schema.json'));
+  fs.mkdirSync(path.dirname(out), { recursive: true });
+  fs.writeFileSync(out, `${JSON.stringify(generateSchema(), null, 2)}\n`);
+  console.log(`schema: ${path.relative(process.cwd(), out)}`);
+}
+
 // ── Argumen ─────────────────────────────────────────────────────
 
 const [first, ...rest] = process.argv.slice(2);
@@ -26,6 +51,10 @@ if (first === '-h' || first === '--help') {
   process.exit(0);
 }
 const cmd = first ?? 'dev';
+if (cmd === 'schema') {
+  await runSchema(rest);
+  process.exit(0);
+}
 if (cmd !== 'dev' && cmd !== 'build') die(`Subcommand tidak dikenal: '${cmd}'`, true);
 const isDev = cmd === 'dev';
 

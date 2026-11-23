@@ -18,13 +18,12 @@ import type {
 import { STATUS_LEVELS } from "./conditions.js";
 
 /** Spesifikasi widget: apakah wajib `bind`, serta tipe properti tambahan. */
-const WIDGET_SPECS: Record<
-  WidgetType,
-  {
-    bind: "required" | "optional" | "none";
-    props: Record<string, "number" | "string" | "boolean">;
-  }
-> = {
+export interface WidgetSpec {
+  bind: "required" | "optional" | "none";
+  props: Record<string, "number" | "string" | "boolean">;
+}
+
+export const WIDGET_SPECS: Record<WidgetType, WidgetSpec> = {
   stat: { bind: "required", props: { unit: "string", decimals: "number" } },
   gauge: {
     bind: "required",
@@ -45,35 +44,164 @@ const WIDGET_SPECS: Record<
 
 export const WIDGET_TYPES = Object.keys(WIDGET_SPECS) as WidgetType[];
 
-const CONDITIONAL_WIDGETS = new Set<string>(["status", "gauge", "stat"]);
+/** Deskripsi satu field source; dipakai validasi compiler sekaligus generator JSON Schema. */
+export interface FieldSpec {
+  type: "string" | "number" | "boolean" | "object";
+  const?: string | number | boolean;
+  enum?: readonly (string | number)[];
+  description?: string;
+  minimum?: number;
+  minLength?: number;
+  pattern?: string;
+  format?: string;
+  default?: unknown;
+  additionalProperties?: FieldSpec;
+}
+
+export type SourceType = SourceNode["type"];
+
+export interface SourceSpec {
+  description: string;
+  fields: Record<string, FieldSpec>;
+  required: readonly string[];
+}
+
+const PATTERN_HTTP = "^https?:\\/\\/";
+const PATTERN_WS = "^wss?:\\/\\/";
+
+/** Spesifikasi source: satu sumber kebenaran untuk kunci, tipe, dan aturan wajib. */
+export const SOURCE_SPECS: Record<SourceType, SourceSpec> = {
+  mock: {
+    description: "Nilai acak berkala untuk demo tanpa backend.",
+    fields: {
+      type: { type: "string", const: "mock", description: "Jenis source." },
+      interval: {
+        type: "number",
+        minimum: 50,
+        default: 1000,
+        description: "Interval emisi data dalam milidetik (minimal 50).",
+      },
+      min: { type: "number", default: 0, description: "Nilai minimum acak." },
+      max: { type: "number", default: 100, description: "Nilai maksimum acak." },
+      unit: { type: "string", description: "Satuan nilai, mis. \"°C\"." },
+    },
+    required: ["type"],
+  },
+  rest: {
+    description: "Ambil data JSON dari endpoint HTTP secara polling.",
+    fields: {
+      type: { type: "string", const: "rest", description: "Jenis source." },
+      url: {
+        type: "string",
+        pattern: PATTERN_HTTP,
+        description: "URL endpoint data (http:// atau https://).",
+      },
+      interval: {
+        type: "number",
+        minimum: 50,
+        default: 5000,
+        description: "Interval polling dalam milidetik (minimal 50).",
+      },
+      path: {
+        type: "string",
+        description: "Jalur titik ke bagian respons JSON, mis. data.temp.",
+      },
+      headers: {
+        type: "object",
+        additionalProperties: { type: "string" },
+        description: "Header HTTP tambahan (nama -> nilai).",
+      },
+      write_url: {
+        type: "string",
+        pattern: PATTERN_HTTP,
+        description: "URL tujuan operasi tulis (default memakai url).",
+      },
+      write_method: {
+        type: "string",
+        enum: ["POST", "PUT", "PATCH"],
+        description: "Metode HTTP untuk operasi tulis (default POST).",
+      },
+    },
+    required: ["type", "url"],
+  },
+  websocket: {
+    description: "Terima data real-time dari koneksi WebSocket.",
+    fields: {
+      type: { type: "string", const: "websocket", description: "Jenis source." },
+      url: {
+        type: "string",
+        pattern: PATTERN_WS,
+        description: "URL WebSocket (ws:// atau wss://).",
+      },
+      path: {
+        type: "string",
+        description: "Jalur titik ke bagian pesan JSON, mis. data.temp.",
+      },
+      reconnect_ms: {
+        type: "number",
+        minimum: 50,
+        default: 1000,
+        description: "Interval reconnect awal dalam milidetik (minimal 50).",
+      },
+      max_reconnect_ms: {
+        type: "number",
+        minimum: 50,
+        default: 30000,
+        description: "Batas maksimum interval reconnect dalam milidetik.",
+      },
+    },
+    required: ["type", "url"],
+  },
+  mqtt: {
+    description: "Terima data real-time dari topik MQTT (WebSocket).",
+    fields: {
+      type: { type: "string", const: "mqtt", description: "Jenis source." },
+      url: {
+        type: "string",
+        pattern: PATTERN_WS,
+        description: "URL broker MQTT over WebSocket (ws:// atau wss://).",
+      },
+      topic: {
+        type: "string",
+        minLength: 1,
+        description: "Topik MQTT yang di-subscribe.",
+      },
+      path: {
+        type: "string",
+        description: "Jalur titik ke bagian payload JSON, mis. data.temp.",
+      },
+      write_topic: {
+        type: "string",
+        minLength: 1,
+        description: "Topik tujuan publish (default memakai topic).",
+      },
+      reconnect_ms: {
+        type: "number",
+        minimum: 50,
+        default: 1000,
+        description: "Interval reconnect awal dalam milidetik (minimal 50).",
+      },
+      max_reconnect_ms: {
+        type: "number",
+        minimum: 50,
+        default: 30000,
+        description: "Batas maksimum interval reconnect dalam milidetik.",
+      },
+    },
+    required: ["type", "url", "topic"],
+  },
+};
+
+const sourceKeys = (type: SourceType): Set<string> =>
+  new Set(Object.keys(SOURCE_SPECS[type].fields));
+
+export const CONDITIONAL_WIDGETS = new Set<string>(["status", "gauge", "stat"]);
 const CONDITIONAL_KEYS = new Set(["state", "steps"]);
 const APP_KEYS = new Set(["title", "theme", "columns"]);
-const SOURCE_MOCK_KEYS = new Set(["type", "interval", "min", "max", "unit"]);
-const SOURCE_REST_KEYS = new Set([
-  "type",
-  "url",
-  "interval",
-  "path",
-  "headers",
-  "write_url",
-  "write_method",
-]);
-const SOURCE_WEBSOCKET_KEYS = new Set([
-  "type",
-  "url",
-  "path",
-  "reconnect_ms",
-  "max_reconnect_ms",
-]);
-const SOURCE_MQTT_KEYS = new Set([
-  "type",
-  "url",
-  "topic",
-  "path",
-  "write_topic",
-  "reconnect_ms",
-  "max_reconnect_ms",
-]);
+const SOURCE_MOCK_KEYS = sourceKeys("mock");
+const SOURCE_REST_KEYS = sourceKeys("rest");
+const SOURCE_WEBSOCKET_KEYS = sourceKeys("websocket");
+const SOURCE_MQTT_KEYS = sourceKeys("mqtt");
 
 const WIDGET_ALLOWED_KEYS: Record<WidgetType, Set<string>> = Object.fromEntries(
   (Object.keys(WIDGET_SPECS) as WidgetType[]).map((type) => {
@@ -89,6 +217,9 @@ const WIDGET_ALLOWED_KEYS: Record<WidgetType, Set<string>> = Object.fromEntries(
 ) as Record<WidgetType, Set<string>>;
 
 const BINDING_RE = /^[A-Za-z_][\w-]*(\.[A-Za-z_][\w-]*)+$/;
+
+/** Pola teks binding `<source>.<path>` untuk validasi dan autocomplete editor. */
+export const BINDING_PATTERN = BINDING_RE.source;
 
 type Obj = Record<string, unknown>;
 
