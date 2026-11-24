@@ -685,3 +685,140 @@ widgets:
   const countAfter = handle.store.history("dev").length;
   assert.equal(countAfter, countBefore, "Emisi tidak boleh bertambah setelah destroy()");
 });
+
+// ---------------------------------------------------------------------------
+// 6. Grid row-span dan fluid container queries
+// ---------------------------------------------------------------------------
+
+test("kartu widget menerapkan rentang kolom (cols) dan baris (rows) sesuai AST", () => {
+  const yaml = `
+app:
+  title: Test Grid Layout
+sources:
+  sensor:
+    type: mock
+widgets:
+  - type: stat
+    bind: sensor.temp
+    cols: 4
+  - type: chart
+    bind: sensor.temp
+    cols: 8
+    rows: 2
+  - type: gauge
+    bind: sensor.temp
+    cols: 6
+    rows: 3
+`;
+  const res = compile(yaml);
+  assert.ok(res.ok, "YAML harus valid");
+  if (!res.ok) return;
+
+  const { container } = setupDOM();
+  const store = createStore();
+  const handle = mount(res.ast, container, { store, run: false });
+
+  const statCard = container.querySelector<HTMLElement>('[data-type="stat"]')!;
+  const chartCard = container.querySelector<HTMLElement>('[data-type="chart"]')!;
+  const gaugeCard = container.querySelector<HTMLElement>('[data-type="gauge"]')!;
+
+  // Default rows: 1 pada stat (cols: 4)
+  assert.equal(statCard.style.gridColumn, "span 4");
+  assert.equal(statCard.style.gridRow, "span 1");
+  assert.equal(statCard.style.getPropertyValue("--m-cols"), "4");
+  assert.equal(statCard.style.getPropertyValue("--m-rows"), "1");
+  assert.equal(statCard.dataset["cols"], "4");
+  assert.equal(statCard.dataset["rows"], "1");
+
+  // rows: 2 pada chart (cols: 8)
+  assert.equal(chartCard.style.gridColumn, "span 8");
+  assert.equal(chartCard.style.gridRow, "span 2");
+  assert.equal(chartCard.style.getPropertyValue("--m-cols"), "8");
+  assert.equal(chartCard.style.getPropertyValue("--m-rows"), "2");
+  assert.equal(chartCard.dataset["cols"], "8");
+  assert.equal(chartCard.dataset["rows"], "2");
+
+  // rows: 3 pada gauge (cols: 6)
+  assert.equal(gaugeCard.style.gridColumn, "span 6");
+  assert.equal(gaugeCard.style.gridRow, "span 3");
+  assert.equal(gaugeCard.style.getPropertyValue("--m-cols"), "6");
+  assert.equal(gaugeCard.style.getPropertyValue("--m-rows"), "3");
+  assert.equal(gaugeCard.dataset["cols"], "6");
+  assert.equal(gaugeCard.dataset["rows"], "3");
+
+  handle.destroy();
+});
+
+test("CSS di styles.ts memuat aturan @container, grid-auto-rows: minmax(var(--m-row-height, 110px), auto), serta grid-auto-flow: row", () => {
+  assert.match(CSS, /container-type:\s*inline-size/);
+  assert.match(CSS, /grid-template-columns:\s*repeat\(12,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(CSS, /grid-auto-rows:\s*minmax\(var\(--m-row-height,\s*110px\),\s*auto\)/);
+  assert.match(CSS, /grid-auto-flow:\s*row/);
+  assert.match(CSS, /@container\s*\(max-width:\s*599px\)/);
+  assert.match(CSS, /@container\s*\(min-width:\s*600px\)\s*and\s*\(max-width:\s*959px\)/);
+  assert.match(CSS, /@container\s*\(min-width:\s*960px\)/);
+  assert.match(CSS, /clamp\(/);
+});
+
+test("widget chart dan gauge ter-render utuh pada kartu dengan rows: 2", () => {
+  const yaml = `
+app:
+  title: Test Widget Rows 2
+sources:
+  dev:
+    type: mock
+widgets:
+  - type: chart
+    title: Grafik Beban
+    bind: dev.load
+    cols: 8
+    rows: 2
+  - type: gauge
+    title: Indikator Level
+    bind: dev.level
+    cols: 4
+    rows: 2
+    min: 0
+    max: 100
+`;
+  const res = compile(yaml);
+  assert.ok(res.ok, "YAML harus valid");
+  if (!res.ok) return;
+
+  const { container } = setupDOM();
+  const store = createStore();
+  store.set("dev", { load: 55, level: 70 });
+  const handle = mount(res.ast, container, { store, run: false });
+
+  const chartCard = container.querySelector<HTMLElement>('[data-type="chart"]')!;
+  const gaugeCard = container.querySelector<HTMLElement>('[data-type="gauge"]')!;
+
+  // Pastikan kartu ter-render dengan kelas dan dimensi rows: 2
+  assert.ok(chartCard.classList.contains("maera-widget"));
+  assert.ok(chartCard.classList.contains("maera-card"));
+  assert.equal(chartCard.style.gridRow, "span 2");
+  assert.equal(chartCard.style.gridColumn, "span 8");
+
+  assert.ok(gaugeCard.classList.contains("maera-widget"));
+  assert.ok(gaugeCard.classList.contains("maera-card"));
+  assert.equal(gaugeCard.style.gridRow, "span 2");
+  assert.equal(gaugeCard.style.gridColumn, "span 4");
+
+  // Chart SVG & meta ada dan ter-render
+  const chartSvg = chartCard.querySelector<SVGElement>(".maera-chart-svg");
+  const chartLine = chartCard.querySelector<SVGElement>(".maera-chart-line");
+  const chartMeta = chartCard.querySelector<HTMLElement>(".maera-chart-meta");
+  assert.ok(chartSvg, "Chart SVG harus ter-render");
+  assert.ok(chartLine, "Garis chart harus ada");
+  assert.ok(chartMeta, "Metadata chart harus ada");
+
+  // Gauge SVG & fills ada dan ter-render
+  const gaugeSvg = gaugeCard.querySelector<SVGElement>(".maera-gauge");
+  const gaugeFill = gaugeCard.querySelector<SVGElement>(".maera-gauge-fill");
+  const gaugeValue = gaugeCard.querySelector<SVGElement>(".maera-gauge-value");
+  assert.ok(gaugeSvg, "Gauge SVG harus ter-render");
+  assert.ok(gaugeFill, "Path gauge fill harus ada");
+  assert.equal(gaugeValue?.textContent, "70");
+
+  handle.destroy();
+});

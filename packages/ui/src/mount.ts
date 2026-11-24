@@ -41,10 +41,18 @@ export function mount(ast: maeraAST, container: HTMLElement, opts: MountOptions 
   const cleanups: Array<() => void> = [];
 
   for (const node of ast.widgets) {
-    const card = el(doc, "section", "maera-widget");
+    const card = el(doc, "section", "maera-widget maera-card");
     card.dataset["type"] = node.type;
     card.dataset["id"] = node.id;
-    card.style.setProperty("--m-span", String(Math.min(node.cols, ast.app.columns)));
+    const cols = Math.max(1, Math.min(node.cols, ast.app.columns));
+    const rows = Math.max(1, node.rows ?? 1);
+    card.dataset["cols"] = String(cols);
+    card.dataset["rows"] = String(rows);
+    card.style.setProperty("--m-cols", String(cols));
+    card.style.setProperty("--m-rows", String(rows));
+    card.style.setProperty("--m-span", String(cols));
+    card.style.gridColumn = `span ${cols}`;
+    card.style.gridRow = `span ${rows}`;
     if (node.title) card.append(el(doc, "h2", "maera-widget-title", node.title));
 
     const body = el(doc, "div", "maera-widget-body");
