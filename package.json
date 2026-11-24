@@ -1,7 +1,7 @@
 {
   "name": "maera-monorepo",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.3.0",
   "description": "maera — UI-ready JavaScript framework untuk dashboard IoT deklaratif (1 file index.maera = 1 dashboard).",
   "workspaces": ["packages/*"],
   "engines": { "node": ">=18" },

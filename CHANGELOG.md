@@ -5,7 +5,7 @@ Semua perubahan penting pada proyek ini didokumentasikan di file ini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id-ID/1.1.0/) dan
 proyek ini memakai [Semantic Versioning](https://semver.org/lang/id/).
 
-## [0.1.0] - 2026-11-24
+## [0.3.0] - 2026-11-24
 
 Rilis awal paket `@maera/core`, `@maera/ui`, dan `@maera/cli`.
 

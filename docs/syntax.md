@@ -7,9 +7,9 @@ documents every key accepted by the compiler in `@maera/core`.
 - [Top-level structure](#top-level-structure)
 - [Sources](#sources)
 - [Widgets](#widgets)
-- [Conditions: `state` and `steps`](#conditions-state-and-steps)
+- [Conditions](#conditions-state-and-steps)
 - [CLI reference](#cli-reference)
-- [Editor integration (JSON Schema)](#editor-integration-json-schema)
+- [Editor integration](#editor-integration-json-schema)
 - [Complete examples](#complete-examples)
 
 ---
@@ -280,7 +280,7 @@ number to the source. If the value is missing, the slider starts at `min`.
 
 ---
 
-## Conditions: `state` and `steps`
+## Conditions
 
 Conditions map a numeric value to a text label and/or a status colour. They are
 supported **only** on `stat`, `gauge`, and `status`. A widget may use **either**
