@@ -357,3 +357,77 @@ test("runner mqtt: store.write mengirim PUBLISH ke write_topic; reject saat belu
 
   wss.close();
 });
+
+test("runner rest: store.write memetakan key payload dari binding property dan fallback .value", async () => {
+  const requests: Array<{ url: string; method: string; body: unknown }> = [];
+  const fakeFetch = (async (url: string, init?: RequestInit) => {
+    requests.push({
+      url,
+      method: init?.method ?? "GET",
+      body: init?.body ? JSON.parse(init.body as string) : undefined,
+    });
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({}),
+    };
+  }) as unknown as typeof fetch;
+
+  const ast: Pick<maeraAST, "sources"> = {
+    sources: {
+      metrics_stream: {
+        type: "rest",
+        url: "http://localhost:8080/api/state",
+        write_url: "http://localhost:8080/api/streams/metrics",
+        write_method: "PATCH",
+        interval: 100000,
+        line: 1,
+      },
+      cpu_ctrl: {
+        type: "rest",
+        url: "http://localhost:8080/api/state",
+        write_url: "http://localhost:8080/api/metrics/cpu",
+        write_method: "PATCH",
+        interval: 100000,
+        line: 2,
+      },
+    },
+  };
+
+  const store = createStore();
+  const runner = startSources(ast, store, { fetch: fakeFetch });
+
+  // a) Properti tunggal bernama
+  await store.write({ s: "metrics_stream", p: ["paused"] }, true);
+  let lastReq = requests[requests.length - 1]!;
+  assert.equal(lastReq.url, "http://localhost:8080/api/streams/metrics");
+  assert.equal(lastReq.method, "PATCH");
+  assert.deepEqual(lastReq.body, { paused: true });
+
+  await store.write({ s: "cpu_ctrl", p: ["target"] }, 90);
+  lastReq = requests[requests.length - 1]!;
+  assert.equal(lastReq.url, "http://localhost:8080/api/metrics/cpu");
+  assert.equal(lastReq.method, "PATCH");
+  assert.deepEqual(lastReq.body, { target: 90 });
+
+  // b) Properti bersarang
+  await store.write({ s: "cpu_ctrl", p: ["config", "target"] }, 90);
+  lastReq = requests[requests.length - 1]!;
+  assert.deepEqual(lastReq.body, { config: { target: 90 } });
+
+  await store.write({ s: "cpu_ctrl", p: ["deep", "nested", "setting"] }, "high");
+  lastReq = requests[requests.length - 1]!;
+  assert.deepEqual(lastReq.body, { deep: { nested: { setting: "high" } } });
+
+  // c) Fallback .value dan binding tanpa segmen properti
+  await store.write({ s: "cpu_ctrl", p: ["value"] }, 42);
+  lastReq = requests[requests.length - 1]!;
+  assert.deepEqual(lastReq.body, { path: "value", value: 42 });
+
+  await store.write({ s: "cpu_ctrl", p: [] }, "raw-val");
+  lastReq = requests[requests.length - 1]!;
+  assert.deepEqual(lastReq.body, { path: "", value: "raw-val" });
+
+  runner.stop();
+});
+

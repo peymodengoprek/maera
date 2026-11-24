@@ -66,6 +66,21 @@ function setPath(
   return root;
 }
 
+function buildRestWritePayload(path: readonly string[], value: unknown): unknown {
+  if (path.length > 0 && !(path.length === 1 && path[0] === "value")) {
+    const root: Record<string, unknown> = {};
+    let cur = root;
+    for (let i = 0; i < path.length - 1; i++) {
+      const next: Record<string, unknown> = {};
+      cur[path[i]!] = next;
+      cur = next;
+    }
+    cur[path[path.length - 1]!] = value;
+    return root;
+  }
+  return { path: path.join("."), value };
+}
+
 /** Random walk di dalam [min, max]; emisi pertama langsung terjadi. */
 function runMock(
   name: string,
@@ -148,13 +163,14 @@ function runRest(
     }
     const targetUrl = def.write_url ?? def.url;
     const method = (def.write_method ?? "POST").toUpperCase();
+    const payload = buildRestWritePayload(binding.p, val);
     const res = await doFetch(targetUrl, {
       method,
       headers: {
         "Content-Type": "application/json",
         ...(def.headers ?? {}),
       },
-      body: JSON.stringify({ path: binding.p.join("."), value: val }),
+      body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status} dari ${targetUrl}`);
   });

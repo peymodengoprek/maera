@@ -148,11 +148,18 @@ to the source as follows:
 | Source | Write behaviour |
 | :--- | :--- |
 | `mock` | Updates the in-memory value at the bound path; the mock walk continues from the new value. |
-| `rest` | Sends `{ "path": "<binding path>", "value": <value> }` as JSON to `write_url` using `write_method`. |
+| `rest` | Maps the property segment(s) to a JSON object (e.g. `bind: metrics_stream.paused` sends `{"paused": true}`). Falls back to `{ "path": "<binding path>", "value": <value> }` when bound to `.value` or without property segments. Sends to `write_url` using `write_method`. |
 | `websocket` | Sends `{ "path": "<binding path>", "value": <value> }` as JSON over the open socket. |
 | `mqtt` | Publishes `{ "path": "<binding path>", "value": <value> }` as JSON to `write_topic`. |
 
-The binding path in the write payload is the part after the source name, for
+For `rest` sources, the JSON payload body automatically mirrors the bound property path:
+- **Direct / nested properties**: When bound to specific properties, Maera structures the JSON body directly for external REST APIs:
+  - Single property: `bind: metrics_stream.paused` sends `{"paused": true}`
+  - Single property: `bind: cpu_ctrl.target` sends `{"target": 90}`
+  - Nested property: `bind: cpu_ctrl.config.target` sends `{"config": {"target": 90}}`
+- **`.value` fallback**: When bound to `.value` (for example `bind: brightness.value`) or when the property path is empty, Maera sends `{ "path": "value", "value": <value> }` for backwards compatibility.
+
+For `websocket` and `mqtt`, the binding path in the write payload is the part after the source name, for
 example `bind: fan.value` sends `path: "value"`. Writes are asynchronous; the
 widget shows a pending state until the source confirms the write. If the source
 is not connected or rejects the write, the widget reports the error and keeps
@@ -530,6 +537,18 @@ sources:
     interval: 1000
     min: 0
     max: 1
+  cpu_ctrl:
+    type: rest
+    url: "https://api.example.com/api/state"
+    write_url: "https://api.example.com/api/metrics/cpu"
+    write_method: PATCH
+    path: metrics.cpu
+  metrics_stream:
+    type: rest
+    url: "https://api.example.com/api/state"
+    write_url: "https://api.example.com/api/streams/metrics"
+    write_method: PATCH
+    path: streams.metrics
   brightness:
     type: rest
     url: "https://api.example.com/brightness"
@@ -545,13 +564,21 @@ widgets:
     bind: fan.value
     on: "Running"
     off: "Stopped"
-    span: 4
+    span: 3
 
   - type: switch
-    title: "Fan power"
-    bind: fan.value
-    label: "Enable fan"
-    span: 4
+    title: "Stream Metrics"
+    bind: metrics_stream.paused
+    label: "Pause stream"
+    span: 3
+
+  - type: slider
+    title: "Target CPU"
+    bind: cpu_ctrl.target
+    min: 0
+    max: 100
+    step: 5
+    span: 3
 
   - type: slider
     title: "Brightness"
@@ -559,7 +586,7 @@ widgets:
     min: 0
     max: 100
     step: 5
-    span: 4
+    span: 3
 ```
 
 ### Real-time sources
