@@ -1,7 +1,6 @@
 app:
   title: Greenhouse Monitor
   theme: default
-  columns: 12
 
 sources:
   temperature:
@@ -24,7 +23,8 @@ widgets:
     min: 0
     max: 50
     unit: "°C"
-    span: 4
+    cols: 4
+    rows: 1
     steps:
       - at: 33
         text: Terlalu panas
@@ -43,7 +43,8 @@ widgets:
     bind: humidity.value
     unit: "%"
     decimals: 1
-    span: 4
+    cols: 4
+    rows: 1
     state:
       threshold: 60
       above:
@@ -54,7 +55,8 @@ widgets:
   - type: status
     title: Kipas
     bind: temperature.value
-    span: 4
+    cols: 4
+    rows: 1
     state:
       threshold: 30
       above:
@@ -68,8 +70,10 @@ widgets:
     points: 60
     min: 15
     max: 40
-    span: 12
+    cols: 12
+    rows: 2
 
   - type: text
     content: Data suhu dan kelembapan adalah simulasi (mock).
-    span: 12
+    cols: 12
+    rows: 1

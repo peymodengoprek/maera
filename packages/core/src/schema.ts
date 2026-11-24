@@ -76,13 +76,6 @@ function buildAppSchema(): JsonSchema {
         default: "default",
         description: "Nama tema tampilan.",
       },
-      columns: {
-        type: "integer",
-        minimum: 1,
-        maximum: 12,
-        default: 12,
-        description: "Jumlah kolom grid (1-12).",
-      },
     },
   };
 }
@@ -178,12 +171,19 @@ function buildWidgetSchema(type: WidgetType): JsonSchema {
       description: `Widget ${type}: ${WIDGET_DESCRIPTIONS[type]}`,
     },
     title: { type: "string", description: "Judul widget (opsional)." },
-    span: {
+    cols: {
       type: "integer",
       minimum: 1,
       maximum: 12,
-      default: 3,
+      default: spec.cols ?? 3,
       description: "Lebar widget dalam kolom grid (1-12).",
+    },
+    rows: {
+      type: "integer",
+      minimum: 1,
+      maximum: 6,
+      default: spec.rows ?? 1,
+      description: "Tinggi widget dalam baris grid (1-6).",
     },
   };
   const required: string[] = ["type"];

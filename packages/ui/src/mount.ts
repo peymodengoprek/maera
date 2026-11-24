@@ -44,7 +44,7 @@ export function mount(ast: maeraAST, container: HTMLElement, opts: MountOptions 
     const card = el(doc, "section", "maera-widget");
     card.dataset["type"] = node.type;
     card.dataset["id"] = node.id;
-    card.style.setProperty("--m-span", String(Math.min(node.span, ast.app.columns)));
+    card.style.setProperty("--m-span", String(Math.min(node.cols, ast.app.columns)));
     if (node.title) card.append(el(doc, "h2", "maera-widget-title", node.title));
 
     const body = el(doc, "div", "maera-widget-body");

@@ -73,6 +73,28 @@ test("generateSchema() valid sebagai JSON Schema dan sinkron dengan konstanta co
   for (const level of STATUS_LEVELS) {
     assert.ok(enums.includes(level), `status '${level}' tidak ada di schema`);
   }
+
+  // Verifikasi app.columns dan widget.span dihapus, cols & rows ditambahkan
+  const appSchema = (schema["properties"] as Obj)["app"] as JsonSchema;
+  const appProps = appSchema["properties"] as Obj;
+  assert.equal("columns" in appProps, false, "app.columns seharusnya tidak ada di schema");
+
+  for (const w of widgetSchemas(schema)) {
+    const wProps = (w["properties"] as Obj) || {};
+    assert.equal("span" in wProps, false, "span seharusnya tidak ada di widget schema");
+    assert.ok("cols" in wProps, "cols seharusnya ada di widget schema");
+    assert.ok("rows" in wProps, "rows seharusnya ada di widget schema");
+    const cols = wProps["cols"] as Obj;
+    assert.equal(cols["type"], "integer");
+    assert.equal(cols["minimum"], 1);
+    assert.equal(cols["maximum"], 12);
+    assert.equal(cols["default"], 3);
+    const rows = wProps["rows"] as Obj;
+    assert.equal(rows["type"], "integer");
+    assert.equal(rows["minimum"], 1);
+    assert.equal(rows["maximum"], 6);
+    assert.equal(rows["default"], 1);
+  }
 });
 
 test("schema/maera.schema.json di repo sinkron dengan generateSchema()", () => {

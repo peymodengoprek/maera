@@ -72,10 +72,10 @@ test("binding berformat salah & tipe properti salah", () => {
   assert.deepEqual(codes, ["INVALID_BINDING", "INVALID_TYPE"]);
 });
 
-test("min >= max ditolak; span di luar rentang ditolak", () => {
-  const r = compile(base("  - type: gauge\n    bind: temp.value\n    min: 10\n    max: 5\n    span: 20\n"));
+test("min >= max ditolak; cols dan rows di luar rentang ditolak", () => {
+  const r = compile(base("  - type: gauge\n    bind: temp.value\n    min: 10\n    max: 5\n    cols: 20\n    rows: 10\n"));
   assert.equal(r.ok, false);
-  assert.deepEqual(r.errors.map((e) => e.code).sort(), ["OUT_OF_RANGE", "OUT_OF_RANGE"]);
+  assert.deepEqual(r.errors.map((e) => e.code).sort(), ["OUT_OF_RANGE", "OUT_OF_RANGE", "OUT_OF_RANGE"]);
 });
 
 test("widget text wajib content; widget lain wajib bind", () => {
@@ -306,12 +306,12 @@ test("kunci tidak dikenal pada level app ditolak dengan nomor baris dan pilihan 
   const e1 = errors.find((e) => e.path === "app.titel")!;
   assert.ok(e1);
   assert.equal(e1.line, 3);
-  assert.match(e1.message, /title, theme, columns/);
+  assert.match(e1.message, /title, theme/);
 
   const e2 = errors.find((e) => e.path === "app.colums")!;
   assert.ok(e2);
   assert.equal(e2.line, 4);
-  assert.match(e2.message, /title, theme, columns/);
+  assert.match(e2.message, /title, theme/);
 });
 
 test("kunci tidak dikenal pada level source ditolak (mock dan rest)", () => {
@@ -368,17 +368,17 @@ widgets:
   const eStat = errors.find((e) => e.path === "widgets[0].titel")!;
   assert.ok(eStat);
   assert.equal(eStat.line, 9);
-  assert.match(eStat.message, /type, title, span, bind, unit, decimals, state, steps/);
+  assert.match(eStat.message, /type, title, cols, rows, bind, unit, decimals, state, steps/);
 
   const eChart = errors.find((e) => e.path === "widgets[1].colums")!;
   assert.ok(eChart);
   assert.equal(eChart.line, 12);
-  assert.match(eChart.message, /type, title, span, bind, points, unit, min, max/);
+  assert.match(eChart.message, /type, title, cols, rows, bind, points, unit, min, max/);
 
   const eText = errors.find((e) => e.path === "widgets[2].bind")!;
   assert.ok(eText);
   assert.equal(eText.line, 15);
-  assert.match(eText.message, /type, title, span, content/);
+  assert.match(eText.message, /type, title, cols, rows, content/);
 });
 
 test("source websocket dan mqtt terkompilasi valid", () => {
@@ -472,4 +472,114 @@ widgets: []
 
   assert.equal(byPath["sources.missing_mq_topic.reconnect_ms"]?.code, "OUT_OF_RANGE");
   assert.equal(byPath["sources.missing_mq_topic.reconnect_ms"]?.line, 19);
+});
+
+test("penolakan app.columns dengan UNKNOWN_KEY dan nomor baris akurat", () => {
+  const src = `app:
+  title: Test
+  columns: 12
+sources:
+  temp:
+    type: mock
+widgets: []
+`;
+  const r = compile(src);
+  assert.equal(r.ok, false);
+  const err = r.errors.find((e) => e.path === "app.columns")!;
+  assert.ok(err);
+  assert.equal(err.code, "UNKNOWN_KEY");
+  assert.equal(err.line, 3);
+  assert.match(err.message, /title, theme/);
+});
+
+test("penolakan widget.span dengan UNKNOWN_KEY, nomor baris akurat, dan saran cols", () => {
+  const src = base("  - type: stat\n    bind: temp.value\n    span: 4\n");
+  const r = compile(src);
+  assert.equal(r.ok, false);
+  const err = r.errors.find((e) => e.path === "widgets[0].span")!;
+  assert.ok(err);
+  assert.equal(err.code, "UNKNOWN_KEY");
+  assert.equal(err.line, 9);
+  assert.match(err.message, /cols/);
+});
+
+test("penerimaan dan default nilai cols (1..12) serta rows (1..6) di AST", () => {
+  const src = base("  - type: stat\n    bind: temp.value\n");
+  const r = compile(src);
+  assert.equal(r.ok, true);
+  if (!r.ok) return;
+  assert.equal(r.ast.app.columns, 12);
+  assert.equal(r.ast.widgets[0]!.cols, 3);
+  assert.equal(r.ast.widgets[0]!.rows, 1);
+
+  const custom = base("  - type: chart\n    bind: temp.value\n    cols: 8\n    rows: 2\n");
+  const r2 = compile(custom);
+  assert.equal(r2.ok, true);
+  if (!r2.ok) return;
+  assert.equal(r2.ast.widgets[0]!.cols, 8);
+  assert.equal(r2.ast.widgets[0]!.rows, 2);
+});
+
+test("penolakan cols < 1, cols > 12, rows < 1, rows > 6, dan nilai non-integer", () => {
+  const src = base(`  - type: stat
+    bind: temp.value
+    cols: 0
+  - type: stat
+    bind: temp.value
+    cols: 13
+  - type: stat
+    bind: temp.value
+    cols: 2.5
+  - type: stat
+    bind: temp.value
+    cols: "bukan angka"
+  - type: stat
+    bind: temp.value
+    rows: 0
+  - type: stat
+    bind: temp.value
+    rows: 7
+  - type: stat
+    bind: temp.value
+    rows: 1.5
+  - type: stat
+    bind: temp.value
+    rows: "bukan angka"
+`);
+  const r = compile(src);
+  assert.equal(r.ok, false);
+  const byPath = r.errors;
+  assert.equal(byPath.length, 8);
+
+  assert.equal(byPath[0]!.path, "widgets[0].cols");
+  assert.equal(byPath[0]!.code, "OUT_OF_RANGE");
+  assert.equal(byPath[0]!.line, 9);
+
+  assert.equal(byPath[1]!.path, "widgets[1].cols");
+  assert.equal(byPath[1]!.code, "OUT_OF_RANGE");
+  assert.equal(byPath[1]!.line, 12);
+
+  assert.equal(byPath[2]!.path, "widgets[2].cols");
+  assert.equal(byPath[2]!.code, "OUT_OF_RANGE");
+  assert.equal(byPath[2]!.line, 15);
+
+  assert.equal(byPath[3]!.path, "widgets[3].cols");
+  assert.equal(byPath[3]!.code, "INVALID_TYPE");
+  assert.equal(byPath[3]!.line, 18);
+
+  assert.equal(byPath[4]!.path, "widgets[4].rows");
+  assert.equal(byPath[4]!.code, "OUT_OF_RANGE");
+  assert.equal(byPath[4]!.line, 21);
+
+  assert.equal(byPath[5]!.path, "widgets[5].rows");
+  assert.equal(byPath[5]!.code, "OUT_OF_RANGE");
+  assert.equal(byPath[5]!.line, 24);
+
+  assert.equal(byPath[6]!.path, "widgets[6].rows");
+  assert.equal(byPath[6]!.code, "OUT_OF_RANGE");
+  assert.equal(byPath[6]!.line, 27);
+
+  assert.equal(byPath[7]!.path, "widgets[7].rows");
+  assert.equal(byPath[7]!.code, "INVALID_TYPE");
+  assert.equal(byPath[7]!.line, 30);
 });

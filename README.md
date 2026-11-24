@@ -64,7 +64,8 @@ widgets:
     unit: "°C"
     min: 0
     max: 50
-    span: 6
+    cols: 6
+    rows: 1
     state:
       threshold: 30
       above:
@@ -117,7 +118,6 @@ Here is a full breakdown of how intuitive a `.maera` file is:
 app:
   title: "Solar Power Station"
   theme: "dark"
-  columns: 12
 
 sources:
   solar_output:
@@ -130,12 +130,14 @@ widgets:
     title: "Current Voltage"
     bind: solar_output.voltage
     unit: "V"
-    span: 4
+    cols: 4
+    rows: 1
 
   - type: status
     title: "Inverter Health"
     bind: solar_output.status_code
-    span: 4
+    cols: 4
+    rows: 1
     steps:
       - at: 200
         status: ok
@@ -149,7 +151,8 @@ widgets:
   - type: chart
     title: "Power Output History"
     bind: solar_output.wattage
-    span: 12
+    cols: 12
+    rows: 2
     points: 30
 ```
 

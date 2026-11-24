@@ -14,7 +14,7 @@ export interface Binding {
 export interface AppNode {
   title: string;
   theme: string;
-  /** Jumlah kolom grid (1–12) */
+  /** Jumlah kolom grid (selalu 12) */
   columns: number;
 }
 
@@ -102,7 +102,8 @@ export interface WidgetNode {
   type: WidgetType;
   title?: string;
   bind?: Binding;
-  span: number;
+  cols: number;
+  rows: number;
   props: Record<string, unknown>;
   line: number | null;
   conditional?: Conditional;

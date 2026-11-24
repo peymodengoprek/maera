@@ -21,6 +21,8 @@ import { STATUS_LEVELS } from "./conditions.js";
 export interface WidgetSpec {
   bind: "required" | "optional" | "none";
   props: Record<string, "number" | "string" | "boolean">;
+  cols?: number;
+  rows?: number;
 }
 
 export const WIDGET_SPECS: Record<WidgetType, WidgetSpec> = {
@@ -197,7 +199,7 @@ const sourceKeys = (type: SourceType): Set<string> =>
 
 export const CONDITIONAL_WIDGETS = new Set<string>(["status", "gauge", "stat"]);
 const CONDITIONAL_KEYS = new Set(["state", "steps"]);
-const APP_KEYS = new Set(["title", "theme", "columns"]);
+const APP_KEYS = new Set(["title", "theme"]);
 const SOURCE_MOCK_KEYS = sourceKeys("mock");
 const SOURCE_REST_KEYS = sourceKeys("rest");
 const SOURCE_WEBSOCKET_KEYS = sourceKeys("websocket");
@@ -206,7 +208,7 @@ const SOURCE_MQTT_KEYS = sourceKeys("mqtt");
 const WIDGET_ALLOWED_KEYS: Record<WidgetType, Set<string>> = Object.fromEntries(
   (Object.keys(WIDGET_SPECS) as WidgetType[]).map((type) => {
     const spec = WIDGET_SPECS[type];
-    const keys = ["type", "title", "span"];
+    const keys = ["type", "title", "cols", "rows"];
     if (spec.bind !== "none") keys.push("bind");
     keys.push(...Object.keys(spec.props));
     if (CONDITIONAL_WIDGETS.has(type)) {
@@ -340,27 +342,11 @@ function validateApp(raw: unknown, err: ErrFn): AppNode | null {
     err("INVALID_TYPE", ["app", "theme"], "`app.theme` harus berupa teks.");
     ok = false;
   }
-  const columns = raw["columns"] ?? 12;
-  if (!isNum(columns)) {
-    err(
-      "INVALID_TYPE",
-      ["app", "columns"],
-      "`app.columns` harus berupa angka.",
-    );
-    ok = false;
-  } else if (!Number.isInteger(columns) || columns < 1 || columns > 12) {
-    err(
-      "OUT_OF_RANGE",
-      ["app", "columns"],
-      "`app.columns` harus bilangan bulat 1–12.",
-    );
-    ok = false;
-  }
   if (!ok) return null;
   return {
     title: title as string,
     theme: theme as string,
-    columns: columns as number,
+    columns: 12,
   };
 }
 
@@ -738,12 +724,22 @@ function validateWidgets(
       ok = false;
     }
 
-    const span = w["span"] ?? 3;
-    if (!isNum(span) || !Number.isInteger(span) || span < 1 || span > 12) {
+    const cols = w["cols"] ?? spec.cols ?? 3;
+    if (!isNum(cols) || !Number.isInteger(cols) || cols < 1 || cols > 12) {
       err(
-        isNum(span) ? "OUT_OF_RANGE" : "INVALID_TYPE",
-        [...base, "span"],
-        "'span' harus bilangan bulat 1–12.",
+        !isNum(cols) ? "INVALID_TYPE" : "OUT_OF_RANGE",
+        [...base, "cols"],
+        "'cols' harus bilangan bulat 1–12.",
+      );
+      ok = false;
+    }
+
+    const rows = w["rows"] ?? spec.rows ?? 1;
+    if (!isNum(rows) || !Number.isInteger(rows) || rows < 1 || rows > 6) {
+      err(
+        !isNum(rows) ? "INVALID_TYPE" : "OUT_OF_RANGE",
+        [...base, "rows"],
+        "'rows' harus bilangan bulat 1–6.",
       );
       ok = false;
     }
@@ -825,7 +821,8 @@ function validateWidgets(
       type: type as WidgetType,
       ...(typeof title === "string" ? { title } : {}),
       ...(bind ? { bind } : {}),
-      span: span as number,
+      cols: cols as number,
+      rows: rows as number,
       props,
       ...(cond.value ? { conditional: cond.value } : {}),
       line: lookupLine(li, base),
@@ -849,10 +846,11 @@ function unknownKeys(
   let ok = true;
   for (const key of Object.keys(raw)) {
     if (allowed.has(key) || ignore?.has(key)) continue;
+    const hint = key === "span" ? " Gunakan 'cols' untuk menentukan lebar kolom." : "";
     err(
       "UNKNOWN_KEY",
       [...path, key],
-      `Kunci '${key}' tidak dikenal. Pilihan: ${[...allowed].join(", ")}.`,
+      `Kunci '${key}' tidak dikenal.${hint} Pilihan: ${[...allowed].join(", ")}.`,
     );
     ok = false;
   }

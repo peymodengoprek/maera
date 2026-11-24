@@ -37,7 +37,8 @@ widgets:   ordered list of widgets rendered on the grid
 | :--- | :--- | :---: | :--- | :--- |
 | `title` | string | ✅ | — | Non-empty dashboard title. |
 | `theme` | string | ❌ | `"default"` | Theme name applied to the dashboard root. |
-| `columns` | integer | ❌ | `12` | Grid width, integer from `1` to `12`. |
+
+The dashboard grid is fixed at 12 columns. The `columns` property is not supported on `app`.
 
 ### Source names and bindings
 
@@ -177,13 +178,13 @@ properties are compile errors.
 | :--- | :--- | :---: | :--- | :--- |
 | `type` | string | ✅ | — | One of `stat`, `gauge`, `chart`, `status`, `text`, `switch`, `slider`. |
 | `title` | string | ❌ | — | Optional widget title. |
-| `span` | integer | ❌ | `3` | Width in grid columns, integer from `1` to `12`. |
+| `cols` | integer | ❌ | `3` | Width in grid columns, integer from `1` to `12`. |
+| `rows` | integer | ❌ | `1` | Height in grid rows, integer from `1` to `6`. |
 | `bind` | string | ✅* | — | `<source>.<path>` binding. Required for every widget except `text`. |
 
-The grid is 12 columns wide by default (`app.columns`). A widget with
-`span: 6` occupies half of the grid; `span: 12` occupies a full row. If
-`app.columns` is smaller than 12, spans are clamped to the configured width at
-render time.
+The grid is fixed at 12 columns wide. A widget with `cols: 6` occupies half of
+the grid; `cols: 12` occupies a full row. `rows` defines the vertical span of
+the widget in rows (1 to 6).
 
 ### `stat`
 
@@ -463,7 +464,6 @@ documentation examples and editor validation can never drift from the compiler.
 app:
   title: "Greenhouse"
   theme: "default"
-  columns: 12
 
 sources:
   temperature:
@@ -479,7 +479,7 @@ widgets:
     bind: temperature.value
     unit: "°C"
     decimals: 1
-    span: 3
+    cols: 3
     state:
       threshold: 30
       above:
@@ -498,7 +498,7 @@ widgets:
     min: 0
     max: 50
     unit: "°C"
-    span: 3
+    cols: 3
     steps:
       - at: 33
         text: "Too hot"
@@ -516,11 +516,11 @@ widgets:
     min: 15
     max: 40
     unit: "°C"
-    span: 6
+    cols: 6
 
   - type: text
     content: "Mock data, no backend required."
-    span: 12
+    cols: 12
 ```
 
 ### Boolean status and two-way controls
@@ -529,7 +529,6 @@ widgets:
 app:
   title: "Controls"
   theme: "dark"
-  columns: 12
 
 sources:
   fan:
@@ -564,13 +563,13 @@ widgets:
     bind: fan.value
     on: "Running"
     off: "Stopped"
-    span: 3
+    cols: 3
 
   - type: switch
     title: "Stream Metrics"
     bind: metrics_stream.paused
     label: "Pause stream"
-    span: 3
+    cols: 3
 
   - type: slider
     title: "Target CPU"
@@ -578,7 +577,7 @@ widgets:
     min: 0
     max: 100
     step: 5
-    span: 3
+    cols: 3
 
   - type: slider
     title: "Brightness"
@@ -586,7 +585,7 @@ widgets:
     min: 0
     max: 100
     step: 5
-    span: 3
+    cols: 3
 ```
 
 ### Real-time sources
@@ -595,7 +594,6 @@ widgets:
 app:
   title: "Realtime"
   theme: "default"
-  columns: 12
 
 sources:
   live:
@@ -617,7 +615,7 @@ widgets:
   - type: status
     title: "WebSocket temperature"
     bind: live.value
-    span: 6
+    cols: 6
     steps:
       - at: 30
         text: "Hot"
@@ -631,7 +629,7 @@ widgets:
   - type: status
     title: "MQTT temperature"
     bind: broker.value
-    span: 6
+    cols: 6
     state:
       threshold: 25
       above:
