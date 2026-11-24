@@ -12,6 +12,7 @@ import type {
   SourceNode,
   Step,
   StatusLevel,
+  ThresholdValue,
   WidgetNode,
   WidgetType,
 } from "./types.js";
@@ -36,7 +37,7 @@ export const WIDGET_SPECS: Record<WidgetType, WidgetSpec> = {
     props: { points: "number", unit: "string", min: "number", max: "number" },
   },
   status: { bind: "required", props: { on: "string", off: "string" } },
-  text: { bind: "none", props: { content: "string" } },
+  text: { bind: "optional", props: { content: "string" } },
   switch: { bind: "required", props: { label: "string" } },
   slider: {
     bind: "required",
@@ -197,7 +198,7 @@ export const SOURCE_SPECS: Record<SourceType, SourceSpec> = {
 const sourceKeys = (type: SourceType): Set<string> =>
   new Set(Object.keys(SOURCE_SPECS[type].fields));
 
-export const CONDITIONAL_WIDGETS = new Set<string>(["status", "gauge", "stat"]);
+export const CONDITIONAL_WIDGETS = new Set<string>(WIDGET_TYPES);
 const CONDITIONAL_KEYS = new Set(["state", "steps"]);
 const APP_KEYS = new Set(["title", "theme"]);
 const SOURCE_MOCK_KEYS = sourceKeys("mock");
@@ -208,12 +209,9 @@ const SOURCE_MQTT_KEYS = sourceKeys("mqtt");
 const WIDGET_ALLOWED_KEYS: Record<WidgetType, Set<string>> = Object.fromEntries(
   (Object.keys(WIDGET_SPECS) as WidgetType[]).map((type) => {
     const spec = WIDGET_SPECS[type];
-    const keys = ["type", "title", "cols", "rows"];
+    const keys = ["type", "title", "cols", "rows", "state", "steps"];
     if (spec.bind !== "none") keys.push("bind");
     keys.push(...Object.keys(spec.props));
-    if (CONDITIONAL_WIDGETS.has(type)) {
-      keys.push("state", "steps");
-    }
     return [type, new Set(keys)];
   }),
 ) as Record<WidgetType, Set<string>>;
@@ -713,8 +711,7 @@ function validateWidgets(
     let ok = true;
 
     const allowed = WIDGET_ALLOWED_KEYS[type as WidgetType];
-    const ignore = CONDITIONAL_WIDGETS.has(type) ? undefined : CONDITIONAL_KEYS;
-    if (!unknownKeys(w, allowed, base, err, ignore)) {
+    if (!unknownKeys(w, allowed, base, err)) {
       ok = false;
     }
 
@@ -803,16 +800,16 @@ function validateWidgets(
       );
       ok = false;
     }
-    if (type === "text" && typeof props["content"] !== "string") {
+    if (type === "text" && w["content"] === undefined && w["bind"] === undefined) {
       err(
         "MISSING_FIELD",
         [...base, "content"],
-        "Widget `text` wajib punya `content`.",
+        "Widget `text` butuh minimal salah satu: `content` atau `bind`.",
       );
       ok = false;
     }
 
-    const cond = parseConditional(w, base, type, err);
+    const cond = parseConditional(w, base, err);
     if (!cond.ok) ok = false;
 
     if (!ok) return;
@@ -914,20 +911,11 @@ function parseOutcome(
 function parseConditional(
   w: Obj,
   base: PathSeg[],
-  type: string,
   err: ErrFn,
 ): { ok: boolean; value?: Conditional } {
   const hasState = w["state"] !== undefined;
   const hasSteps = w["steps"] !== undefined;
   if (!hasState && !hasSteps) return { ok: true };
-  if (!CONDITIONAL_WIDGETS.has(type)) {
-    err(
-      "UNSUPPORTED",
-      [...base, hasState ? "state" : "steps"],
-      `Widget '${type}' tidak mendukung state/steps. Didukung: status, gauge, stat.`,
-    );
-    return { ok: false };
-  }
   if (hasState && hasSteps) {
     err(
       "INVALID_TYPE",
@@ -957,14 +945,45 @@ function parseState(
   }
   let ok = unknownKeys(raw, STATE_KEYS, path, err);
   const threshold = raw["threshold"];
-  if (!isNum(threshold)) {
+  const isNumber = isNum(threshold);
+  const isString = typeof threshold === "string";
+  const isBool = typeof threshold === "boolean";
+
+  if (threshold === undefined) {
     err(
-      threshold === undefined ? "MISSING_FIELD" : "INVALID_TYPE",
+      "MISSING_FIELD",
       [...path, "threshold"],
-      "`state.threshold` wajib berupa angka.",
+      "`state.threshold` wajib berupa angka, teks, atau boolean.",
+    );
+    ok = false;
+  } else if (!isNumber && !isString && !isBool) {
+    err(
+      "INVALID_TYPE",
+      [...path, "threshold"],
+      "`state.threshold` wajib berupa angka, teks, atau boolean.",
     );
     ok = false;
   }
+
+  if (!isNumber && (isString || isBool)) {
+    if (raw["above"] !== undefined) {
+      err(
+        "INVALID_TYPE",
+        [...path, "above"],
+        "'above' hanya diperbolehkan untuk threshold numerik.",
+      );
+      ok = false;
+    }
+    if (raw["below"] !== undefined) {
+      err(
+        "INVALID_TYPE",
+        [...path, "below"],
+        "'below' hanya diperbolehkan untuk threshold numerik.",
+      );
+      ok = false;
+    }
+  }
+
   const outs: { above?: Outcome; below?: Outcome; equal?: Outcome } = {};
   let any = false;
   for (const k of ["above", "below", "equal"] as const) {
@@ -982,7 +1001,7 @@ function parseState(
     );
     ok = false;
   }
-  return ok ? { kind: "state", threshold: threshold as number, ...outs } : null;
+  return ok ? { kind: "state", threshold: threshold as ThresholdValue, ...outs } : null;
 }
 
 function parseSteps(
@@ -1000,8 +1019,9 @@ function parseSteps(
   }
   let ok = true;
   const steps: Step[] = [];
-  const seen = new Set<number>();
+  const seen = new Set<unknown>();
   let hasFallback = false;
+  let atType: "number" | "string" | "boolean" | null = null;
 
   raw.forEach((item, i) => {
     const p: PathSeg[] = [...path, i];
@@ -1016,7 +1036,7 @@ function parseSteps(
     }
     if (!unknownKeys(item, STEP_KEYS, p, err)) ok = false;
 
-    let at: number | null = null;
+    let at: number | string | boolean | null = null;
     const rawAt = item["at"];
     if (rawAt === undefined) {
       if (hasFallback) {
@@ -1028,20 +1048,43 @@ function parseSteps(
         ok = false;
       }
       hasFallback = true;
-    } else if (!isNum(rawAt)) {
-      err("INVALID_TYPE", [...p, "at"], "`at` harus berupa angka.");
-      ok = false;
     } else {
-      if (seen.has(rawAt)) {
-        err(
-          "DUPLICATE_STEP",
-          [...p, "at"],
-          `Nilai at: ${rawAt} sudah dipakai langkah lain.`,
-        );
+      const isNumber = isNum(rawAt);
+      const isString = typeof rawAt === "string";
+      const isBool = typeof rawAt === "boolean";
+
+      if (!isNumber && !isString && !isBool) {
+        err("INVALID_TYPE", [...p, "at"], "`at` harus berupa angka, teks, atau boolean.");
         ok = false;
+      } else {
+        const currentType: "number" | "string" | "boolean" = isNumber
+          ? "number"
+          : isString
+            ? "string"
+            : "boolean";
+
+        if (atType === null) {
+          atType = currentType;
+        } else if (atType !== currentType) {
+          err(
+            "INVALID_TYPE",
+            [...p, "at"],
+            "Tipe `at` tidak boleh dicampur dalam satu blok `steps`.",
+          );
+          ok = false;
+        }
+
+        if (seen.has(rawAt)) {
+          err(
+            "DUPLICATE_STEP",
+            [...p, "at"],
+            `Nilai at: ${String(rawAt)} sudah dipakai langkah lain.`,
+          );
+          ok = false;
+        }
+        seen.add(rawAt);
+        at = rawAt as number | string | boolean;
       }
-      seen.add(rawAt);
-      at = rawAt;
     }
 
     const outcomeRaw: Obj = {};
@@ -1053,7 +1096,14 @@ function parseSteps(
   });
 
   if (!ok) return null;
-  // Terbesar dulu; cadangan (at = null) paling akhir.
-  steps.sort((a, b) => (a.at === null ? 1 : b.at === null ? -1 : b.at - a.at));
+  // Urutkan: terbesar dulu jika angka; cadangan (at = null) paling akhir.
+  steps.sort((a, b) => {
+    if (a.at === null) return 1;
+    if (b.at === null) return -1;
+    if (typeof a.at === "number" && typeof b.at === "number") {
+      return b.at - a.at;
+    }
+    return 0;
+  });
   return { kind: "steps", steps };
 }

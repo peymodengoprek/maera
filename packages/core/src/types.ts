@@ -88,14 +88,23 @@ export interface Outcome {
   status?: StatusLevel;
 }
 
+export type StepValue = number | string | boolean;
+export type ThresholdValue = number | string | boolean;
+
 export interface Step {
-  at: number | null;
+  at: StepValue | null;
   outcome: Outcome;
 }
 
 export type Conditional =
   | { kind: "steps"; steps: Step[] }
-  | { kind: "state"; threshold: number; above?: Outcome; below?: Outcome; equal?: Outcome };
+  | {
+      kind: "state";
+      threshold: ThresholdValue;
+      above?: Outcome;
+      below?: Outcome;
+      equal?: Outcome;
+    };
 
 export interface WidgetNode {
   id: string;

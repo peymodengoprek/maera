@@ -33,6 +33,8 @@ export type {
   SourceNode,
   StatusLevel,
   Step,
+  StepValue,
+  ThresholdValue,
   Unsubscribe,
   WebSocketSource,
   WidgetNode,

@@ -286,8 +286,12 @@
                 ],
                 "properties": {
                   "threshold": {
-                    "type": "number",
-                    "description": "Batas pembanding (inklusif untuk above/equal)."
+                    "type": [
+                      "number",
+                      "string",
+                      "boolean"
+                    ],
+                    "description": "Batas pembanding (angka, teks, atau boolean)."
                   },
                   "above": {
                     "description": "Teks saja atau objek { text, status }.",
@@ -435,8 +439,12 @@
                   ],
                   "properties": {
                     "at": {
-                      "type": "number",
-                      "description": "Ambang inklusif (value >= at). Kosongkan untuk cadangan."
+                      "type": [
+                        "number",
+                        "string",
+                        "boolean"
+                      ],
+                      "description": "Ambang batas pembanding (angka, teks, atau boolean). Kosongkan untuk cadangan."
                     },
                     "text": {
                       "type": "string",
@@ -541,8 +549,12 @@
                 ],
                 "properties": {
                   "threshold": {
-                    "type": "number",
-                    "description": "Batas pembanding (inklusif untuk above/equal)."
+                    "type": [
+                      "number",
+                      "string",
+                      "boolean"
+                    ],
+                    "description": "Batas pembanding (angka, teks, atau boolean)."
                   },
                   "above": {
                     "description": "Teks saja atau objek { text, status }.",
@@ -690,8 +702,12 @@
                   ],
                   "properties": {
                     "at": {
-                      "type": "number",
-                      "description": "Ambang inklusif (value >= at). Kosongkan untuk cadangan."
+                      "type": [
+                        "number",
+                        "string",
+                        "boolean"
+                      ],
+                      "description": "Ambang batas pembanding (angka, teks, atau boolean). Kosongkan untuk cadangan."
                     },
                     "text": {
                       "type": "string",
@@ -773,52 +789,6 @@
               "max": {
                 "type": "number",
                 "description": "Batas atas rentang."
-              }
-            }
-          },
-          {
-            "type": "object",
-            "description": "Indikator status on/off dengan label.",
-            "additionalProperties": false,
-            "required": [
-              "type",
-              "bind"
-            ],
-            "properties": {
-              "type": {
-                "const": "status",
-                "description": "Widget status: Indikator status on/off dengan label."
-              },
-              "title": {
-                "type": "string",
-                "description": "Judul widget (opsional)."
-              },
-              "cols": {
-                "type": "integer",
-                "minimum": 1,
-                "maximum": 12,
-                "default": 3,
-                "description": "Lebar widget dalam kolom grid (1-12)."
-              },
-              "rows": {
-                "type": "integer",
-                "minimum": 1,
-                "maximum": 6,
-                "default": 1,
-                "description": "Tinggi widget dalam baris grid (1-6)."
-              },
-              "bind": {
-                "type": "string",
-                "pattern": "^[A-Za-z_][\\w-]*(\\.[A-Za-z_][\\w-]*)+$",
-                "description": "Binding ke data source dengan format `<source>.<path>`."
-              },
-              "on": {
-                "type": "string",
-                "description": "Teks saat nilai benar (on)."
-              },
-              "off": {
-                "type": "string",
-                "description": "Teks saat nilai salah (off)."
               },
               "state": {
                 "type": "object",
@@ -846,8 +816,12 @@
                 ],
                 "properties": {
                   "threshold": {
-                    "type": "number",
-                    "description": "Batas pembanding (inklusif untuk above/equal)."
+                    "type": [
+                      "number",
+                      "string",
+                      "boolean"
+                    ],
+                    "description": "Batas pembanding (angka, teks, atau boolean)."
                   },
                   "above": {
                     "description": "Teks saja atau objek { text, status }.",
@@ -995,8 +969,12 @@
                   ],
                   "properties": {
                     "at": {
-                      "type": "number",
-                      "description": "Ambang inklusif (value >= at). Kosongkan untuk cadangan."
+                      "type": [
+                        "number",
+                        "string",
+                        "boolean"
+                      ],
+                      "description": "Ambang batas pembanding (angka, teks, atau boolean). Kosongkan untuk cadangan."
                     },
                     "text": {
                       "type": "string",
@@ -1029,16 +1007,16 @@
           },
           {
             "type": "object",
-            "description": "Teks statis tanpa binding.",
+            "description": "Indikator status on/off dengan label.",
             "additionalProperties": false,
             "required": [
               "type",
-              "content"
+              "bind"
             ],
             "properties": {
               "type": {
-                "const": "text",
-                "description": "Widget text: Teks statis tanpa binding."
+                "const": "status",
+                "description": "Widget status: Indikator status on/off dengan label."
               },
               "title": {
                 "type": "string",
@@ -1058,11 +1036,499 @@
                 "default": 1,
                 "description": "Tinggi widget dalam baris grid (1-6)."
               },
+              "bind": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][\\w-]*(\\.[A-Za-z_][\\w-]*)+$",
+                "description": "Binding ke data source dengan format `<source>.<path>`."
+              },
+              "on": {
+                "type": "string",
+                "description": "Teks saat nilai benar (on)."
+              },
+              "off": {
+                "type": "string",
+                "description": "Teks saat nilai salah (off)."
+              },
+              "state": {
+                "type": "object",
+                "description": "Kondisi berbasis ambang batas tunggal.",
+                "additionalProperties": false,
+                "required": [
+                  "threshold"
+                ],
+                "anyOf": [
+                  {
+                    "required": [
+                      "above"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "below"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "equal"
+                    ]
+                  }
+                ],
+                "properties": {
+                  "threshold": {
+                    "type": [
+                      "number",
+                      "string",
+                      "boolean"
+                    ],
+                    "description": "Batas pembanding (angka, teks, atau boolean)."
+                  },
+                  "above": {
+                    "description": "Teks saja atau objek { text, status }.",
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "anyOf": [
+                          {
+                            "required": [
+                              "text"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "status"
+                            ]
+                          }
+                        ],
+                        "properties": {
+                          "text": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Teks hasil."
+                          },
+                          "status": {
+                            "enum": [
+                              "ok",
+                              "info",
+                              "warning",
+                              "danger"
+                            ],
+                            "description": "Warna status: ok, info, warning, danger."
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "below": {
+                    "description": "Teks saja atau objek { text, status }.",
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "anyOf": [
+                          {
+                            "required": [
+                              "text"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "status"
+                            ]
+                          }
+                        ],
+                        "properties": {
+                          "text": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Teks hasil."
+                          },
+                          "status": {
+                            "enum": [
+                              "ok",
+                              "info",
+                              "warning",
+                              "danger"
+                            ],
+                            "description": "Warna status: ok, info, warning, danger."
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "equal": {
+                    "description": "Teks saja atau objek { text, status }.",
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "anyOf": [
+                          {
+                            "required": [
+                              "text"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "status"
+                            ]
+                          }
+                        ],
+                        "properties": {
+                          "text": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Teks hasil."
+                          },
+                          "status": {
+                            "enum": [
+                              "ok",
+                              "info",
+                              "warning",
+                              "danger"
+                            ],
+                            "description": "Warna status: ok, info, warning, danger."
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              "steps": {
+                "type": "array",
+                "description": "Daftar langkah; langkah dengan `at` terbesar yang cocok dipakai. Satu langkah tanpa `at` menjadi cadangan.",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "anyOf": [
+                    {
+                      "required": [
+                        "text"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "status"
+                      ]
+                    }
+                  ],
+                  "properties": {
+                    "at": {
+                      "type": [
+                        "number",
+                        "string",
+                        "boolean"
+                      ],
+                      "description": "Ambang batas pembanding (angka, teks, atau boolean). Kosongkan untuk cadangan."
+                    },
+                    "text": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Teks hasil."
+                    },
+                    "status": {
+                      "enum": [
+                        "ok",
+                        "info",
+                        "warning",
+                        "danger"
+                      ],
+                      "description": "Warna status: ok, info, warning, danger."
+                    }
+                  }
+                }
+              }
+            },
+            "allOf": [
+              {
+                "not": {
+                  "required": [
+                    "state",
+                    "steps"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "description": "Teks statis atau dinamis berbasis binding.",
+            "additionalProperties": false,
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "const": "text",
+                "description": "Widget text: Teks statis atau dinamis berbasis binding."
+              },
+              "title": {
+                "type": "string",
+                "description": "Judul widget (opsional)."
+              },
+              "cols": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 12,
+                "default": 3,
+                "description": "Lebar widget dalam kolom grid (1-12)."
+              },
+              "rows": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 6,
+                "default": 1,
+                "description": "Tinggi widget dalam baris grid (1-6)."
+              },
+              "bind": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][\\w-]*(\\.[A-Za-z_][\\w-]*)+$",
+                "description": "Binding ke data source dengan format `<source>.<path>`."
+              },
               "content": {
                 "type": "string",
                 "description": "Isi teks yang ditampilkan."
+              },
+              "state": {
+                "type": "object",
+                "description": "Kondisi berbasis ambang batas tunggal.",
+                "additionalProperties": false,
+                "required": [
+                  "threshold"
+                ],
+                "anyOf": [
+                  {
+                    "required": [
+                      "above"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "below"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "equal"
+                    ]
+                  }
+                ],
+                "properties": {
+                  "threshold": {
+                    "type": [
+                      "number",
+                      "string",
+                      "boolean"
+                    ],
+                    "description": "Batas pembanding (angka, teks, atau boolean)."
+                  },
+                  "above": {
+                    "description": "Teks saja atau objek { text, status }.",
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "anyOf": [
+                          {
+                            "required": [
+                              "text"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "status"
+                            ]
+                          }
+                        ],
+                        "properties": {
+                          "text": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Teks hasil."
+                          },
+                          "status": {
+                            "enum": [
+                              "ok",
+                              "info",
+                              "warning",
+                              "danger"
+                            ],
+                            "description": "Warna status: ok, info, warning, danger."
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "below": {
+                    "description": "Teks saja atau objek { text, status }.",
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "anyOf": [
+                          {
+                            "required": [
+                              "text"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "status"
+                            ]
+                          }
+                        ],
+                        "properties": {
+                          "text": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Teks hasil."
+                          },
+                          "status": {
+                            "enum": [
+                              "ok",
+                              "info",
+                              "warning",
+                              "danger"
+                            ],
+                            "description": "Warna status: ok, info, warning, danger."
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "equal": {
+                    "description": "Teks saja atau objek { text, status }.",
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "anyOf": [
+                          {
+                            "required": [
+                              "text"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "status"
+                            ]
+                          }
+                        ],
+                        "properties": {
+                          "text": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Teks hasil."
+                          },
+                          "status": {
+                            "enum": [
+                              "ok",
+                              "info",
+                              "warning",
+                              "danger"
+                            ],
+                            "description": "Warna status: ok, info, warning, danger."
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              "steps": {
+                "type": "array",
+                "description": "Daftar langkah; langkah dengan `at` terbesar yang cocok dipakai. Satu langkah tanpa `at` menjadi cadangan.",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "anyOf": [
+                    {
+                      "required": [
+                        "text"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "status"
+                      ]
+                    }
+                  ],
+                  "properties": {
+                    "at": {
+                      "type": [
+                        "number",
+                        "string",
+                        "boolean"
+                      ],
+                      "description": "Ambang batas pembanding (angka, teks, atau boolean). Kosongkan untuk cadangan."
+                    },
+                    "text": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Teks hasil."
+                    },
+                    "status": {
+                      "enum": [
+                        "ok",
+                        "info",
+                        "warning",
+                        "danger"
+                      ],
+                      "description": "Warna status: ok, info, warning, danger."
+                    }
+                  }
+                }
               }
-            }
+            },
+            "allOf": [
+              {
+                "not": {
+                  "required": [
+                    "state",
+                    "steps"
+                  ]
+                }
+              }
+            ],
+            "anyOf": [
+              {
+                "required": [
+                  "content"
+                ]
+              },
+              {
+                "required": [
+                  "bind"
+                ]
+              }
+            ]
           },
           {
             "type": "object",
@@ -1103,8 +1569,221 @@
               "label": {
                 "type": "string",
                 "description": "Label kontrol."
+              },
+              "state": {
+                "type": "object",
+                "description": "Kondisi berbasis ambang batas tunggal.",
+                "additionalProperties": false,
+                "required": [
+                  "threshold"
+                ],
+                "anyOf": [
+                  {
+                    "required": [
+                      "above"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "below"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "equal"
+                    ]
+                  }
+                ],
+                "properties": {
+                  "threshold": {
+                    "type": [
+                      "number",
+                      "string",
+                      "boolean"
+                    ],
+                    "description": "Batas pembanding (angka, teks, atau boolean)."
+                  },
+                  "above": {
+                    "description": "Teks saja atau objek { text, status }.",
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "anyOf": [
+                          {
+                            "required": [
+                              "text"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "status"
+                            ]
+                          }
+                        ],
+                        "properties": {
+                          "text": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Teks hasil."
+                          },
+                          "status": {
+                            "enum": [
+                              "ok",
+                              "info",
+                              "warning",
+                              "danger"
+                            ],
+                            "description": "Warna status: ok, info, warning, danger."
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "below": {
+                    "description": "Teks saja atau objek { text, status }.",
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "anyOf": [
+                          {
+                            "required": [
+                              "text"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "status"
+                            ]
+                          }
+                        ],
+                        "properties": {
+                          "text": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Teks hasil."
+                          },
+                          "status": {
+                            "enum": [
+                              "ok",
+                              "info",
+                              "warning",
+                              "danger"
+                            ],
+                            "description": "Warna status: ok, info, warning, danger."
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "equal": {
+                    "description": "Teks saja atau objek { text, status }.",
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "anyOf": [
+                          {
+                            "required": [
+                              "text"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "status"
+                            ]
+                          }
+                        ],
+                        "properties": {
+                          "text": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Teks hasil."
+                          },
+                          "status": {
+                            "enum": [
+                              "ok",
+                              "info",
+                              "warning",
+                              "danger"
+                            ],
+                            "description": "Warna status: ok, info, warning, danger."
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              "steps": {
+                "type": "array",
+                "description": "Daftar langkah; langkah dengan `at` terbesar yang cocok dipakai. Satu langkah tanpa `at` menjadi cadangan.",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "anyOf": [
+                    {
+                      "required": [
+                        "text"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "status"
+                      ]
+                    }
+                  ],
+                  "properties": {
+                    "at": {
+                      "type": [
+                        "number",
+                        "string",
+                        "boolean"
+                      ],
+                      "description": "Ambang batas pembanding (angka, teks, atau boolean). Kosongkan untuk cadangan."
+                    },
+                    "text": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Teks hasil."
+                    },
+                    "status": {
+                      "enum": [
+                        "ok",
+                        "info",
+                        "warning",
+                        "danger"
+                      ],
+                      "description": "Warna status: ok, info, warning, danger."
+                    }
+                  }
+                }
               }
-            }
+            },
+            "allOf": [
+              {
+                "not": {
+                  "required": [
+                    "state",
+                    "steps"
+                  ]
+                }
+              }
+            ]
           },
           {
             "type": "object",
@@ -1154,8 +1833,221 @@
                 "type": "number",
                 "exclusiveMinimum": 0,
                 "description": "Langkah kenaikan slider (harus > 0)."
+              },
+              "state": {
+                "type": "object",
+                "description": "Kondisi berbasis ambang batas tunggal.",
+                "additionalProperties": false,
+                "required": [
+                  "threshold"
+                ],
+                "anyOf": [
+                  {
+                    "required": [
+                      "above"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "below"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "equal"
+                    ]
+                  }
+                ],
+                "properties": {
+                  "threshold": {
+                    "type": [
+                      "number",
+                      "string",
+                      "boolean"
+                    ],
+                    "description": "Batas pembanding (angka, teks, atau boolean)."
+                  },
+                  "above": {
+                    "description": "Teks saja atau objek { text, status }.",
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "anyOf": [
+                          {
+                            "required": [
+                              "text"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "status"
+                            ]
+                          }
+                        ],
+                        "properties": {
+                          "text": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Teks hasil."
+                          },
+                          "status": {
+                            "enum": [
+                              "ok",
+                              "info",
+                              "warning",
+                              "danger"
+                            ],
+                            "description": "Warna status: ok, info, warning, danger."
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "below": {
+                    "description": "Teks saja atau objek { text, status }.",
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "anyOf": [
+                          {
+                            "required": [
+                              "text"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "status"
+                            ]
+                          }
+                        ],
+                        "properties": {
+                          "text": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Teks hasil."
+                          },
+                          "status": {
+                            "enum": [
+                              "ok",
+                              "info",
+                              "warning",
+                              "danger"
+                            ],
+                            "description": "Warna status: ok, info, warning, danger."
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "equal": {
+                    "description": "Teks saja atau objek { text, status }.",
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "anyOf": [
+                          {
+                            "required": [
+                              "text"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "status"
+                            ]
+                          }
+                        ],
+                        "properties": {
+                          "text": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Teks hasil."
+                          },
+                          "status": {
+                            "enum": [
+                              "ok",
+                              "info",
+                              "warning",
+                              "danger"
+                            ],
+                            "description": "Warna status: ok, info, warning, danger."
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              "steps": {
+                "type": "array",
+                "description": "Daftar langkah; langkah dengan `at` terbesar yang cocok dipakai. Satu langkah tanpa `at` menjadi cadangan.",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "anyOf": [
+                    {
+                      "required": [
+                        "text"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "status"
+                      ]
+                    }
+                  ],
+                  "properties": {
+                    "at": {
+                      "type": [
+                        "number",
+                        "string",
+                        "boolean"
+                      ],
+                      "description": "Ambang batas pembanding (angka, teks, atau boolean). Kosongkan untuk cadangan."
+                    },
+                    "text": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Teks hasil."
+                    },
+                    "status": {
+                      "enum": [
+                        "ok",
+                        "info",
+                        "warning",
+                        "danger"
+                      ],
+                      "description": "Warna status: ok, info, warning, danger."
+                    }
+                  }
+                }
               }
-            }
+            },
+            "allOf": [
+              {
+                "not": {
+                  "required": [
+                    "state",
+                    "steps"
+                  ]
+                }
+              }
+            ]
           }
         ]
       }

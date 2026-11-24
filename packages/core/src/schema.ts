@@ -5,7 +5,6 @@
  */
 import {
   BINDING_PATTERN,
-  CONDITIONAL_WIDGETS,
   SOURCE_SPECS,
   WIDGET_SPECS,
   WIDGET_TYPES,
@@ -25,7 +24,7 @@ const WIDGET_DESCRIPTIONS: Record<WidgetType, string> = {
   gauge: "Pengukur busur dengan rentang min/max.",
   chart: "Grafik tren dari riwayat nilai.",
   status: "Indikator status on/off dengan label.",
-  text: "Teks statis tanpa binding.",
+  text: "Teks statis atau dinamis berbasis binding.",
   switch: "Sakelar interaktif yang menulis ke source.",
   slider: "Slider interaktif yang menulis ke source.",
 };
@@ -122,8 +121,8 @@ const STATE_SCHEMA: JsonSchema = {
   anyOf: [{ required: ["above"] }, { required: ["below"] }, { required: ["equal"] }],
   properties: {
     threshold: {
-      type: "number",
-      description: "Batas pembanding (inklusif untuk above/equal).",
+      type: ["number", "string", "boolean"],
+      description: "Batas pembanding (angka, teks, atau boolean).",
     },
     above: OUTCOME_SCHEMA,
     below: OUTCOME_SCHEMA,
@@ -142,8 +141,8 @@ const STEPS_SCHEMA: JsonSchema = {
     anyOf: [{ required: ["text"] }, { required: ["status"] }],
     properties: {
       at: {
-        type: "number",
-        description: "Ambang inklusif (value >= at). Kosongkan untuk cadangan.",
+        type: ["number", "string", "boolean"],
+        description: "Ambang batas pembanding (angka, teks, atau boolean). Kosongkan untuk cadangan.",
       },
       text: { type: "string", minLength: 1, description: "Teks hasil." },
       status: {
@@ -201,12 +200,8 @@ function buildWidgetSchema(type: WidgetType): JsonSchema {
     properties[key] = propSchema(type, key, propType);
   }
 
-  if (CONDITIONAL_WIDGETS.has(type)) {
-    properties["state"] = STATE_SCHEMA;
-    properties["steps"] = STEPS_SCHEMA;
-  }
-
-  if (type === "text") required.push("content");
+  properties["state"] = STATE_SCHEMA;
+  properties["steps"] = STEPS_SCHEMA;
 
   const schema: JsonSchema = {
     type: "object",
@@ -214,10 +209,11 @@ function buildWidgetSchema(type: WidgetType): JsonSchema {
     additionalProperties: false,
     required,
     properties,
+    allOf: [{ not: { required: ["state", "steps"] } }],
   };
 
-  if (CONDITIONAL_WIDGETS.has(type)) {
-    schema["allOf"] = [{ not: { required: ["state", "steps"] } }];
+  if (type === "text") {
+    schema["anyOf"] = [{ required: ["content"] }, { required: ["bind"] }];
   }
 
   return schema;

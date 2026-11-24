@@ -158,8 +158,6 @@ test("state dan steps tidak boleh bersamaan; widget lain menolaknya", () => {
     withWidget("  - type: stat\n    bind: temp.value\n    state: { threshold: 1, above: A }\n    steps:\n      - at: 1\n        text: A\n"),
   );
   assert.equal(both.ok, false);
-  const chart = compile(withWidget("  - type: chart\n    bind: temp.value\n    state: { threshold: 1, above: A }\n"));
-  assert.equal(chart.errors[0]!.code, "UNSUPPORTED");
 });
 
 // ── switch & slider ───────────────────────────────────────────────
@@ -238,13 +236,6 @@ test("widget slider menolak kunci asing dan tipe non-numerik", () => {
   assert.equal(byPath["widgets[0].foo"]?.code, "UNKNOWN_KEY");
 });
 
-test("switch & slider tidak mendukung state/steps", () => {
-  const r = compile(
-    withWidget("  - type: switch\n    bind: temp.value\n    state: { threshold: 1, above: A }\n"),
-  );
-  assert.equal(r.ok, false);
-  assert.equal(r.errors[0]!.code, "UNSUPPORTED");
-});
 
 test("opsi tulis source rest & mqtt diterima dan divalidasi", () => {
   const ok = compile(`app:
@@ -363,22 +354,18 @@ widgets:
   const r = compile(src);
   assert.equal(r.ok, false);
   const errors = r.errors.filter((e) => e.code === "UNKNOWN_KEY");
-  assert.equal(errors.length, 3);
+  assert.equal(errors.length, 2);
 
   const eStat = errors.find((e) => e.path === "widgets[0].titel")!;
   assert.ok(eStat);
   assert.equal(eStat.line, 9);
-  assert.match(eStat.message, /type, title, cols, rows, bind, unit, decimals, state, steps/);
+  assert.match(eStat.message, /type, title, cols, rows, state, steps, bind, unit, decimals/);
 
   const eChart = errors.find((e) => e.path === "widgets[1].colums")!;
   assert.ok(eChart);
   assert.equal(eChart.line, 12);
-  assert.match(eChart.message, /type, title, cols, rows, bind, points, unit, min, max/);
+  assert.match(eChart.message, /type, title, cols, rows, state, steps, bind, points, unit, min, max/);
 
-  const eText = errors.find((e) => e.path === "widgets[2].bind")!;
-  assert.ok(eText);
-  assert.equal(eText.line, 15);
-  assert.match(eText.message, /type, title, cols, rows, content/);
 });
 
 test("source websocket dan mqtt terkompilasi valid", () => {
