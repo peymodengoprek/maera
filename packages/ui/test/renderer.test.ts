@@ -749,6 +749,302 @@ widgets:
   handle.destroy();
 });
 
+// ---------------------------------------------------------------------------
+// 7. Widget text dinamis & evaluasi universal state/steps
+// ---------------------------------------------------------------------------
+
+test("widget text merender nilai dinamis dari bind tunggal", () => {
+  const yaml = `
+app:
+  title: Test Text Bind
+sources:
+  alerts:
+    type: mock
+widgets:
+  - type: text
+    bind: alerts.message
+`;
+  const res = compile(yaml);
+  assert.ok(res.ok, "YAML harus valid");
+  if (!res.ok) return;
+
+  const { container } = setupDOM();
+  const store = createStore();
+  const handle = mount(res.ast, container, { store, run: false });
+
+  const card = container.querySelector<HTMLElement>('[data-type="text"]')!;
+  const textEl = card.querySelector<HTMLElement>(".maera-text")!;
+
+  // Awal: belum ada nilai -> "—"
+  assert.equal(textEl.textContent, "—");
+
+  store.set("alerts", { message: "halo dunia" });
+  assert.equal(textEl.textContent, "halo dunia");
+
+  store.set("alerts", { message: 42 });
+  assert.equal(textEl.textContent, "42");
+
+  store.set("alerts", { message: null });
+  assert.equal(textEl.textContent, "—");
+
+  handle.destroy();
+});
+
+test("widget text mendukung kombinasi content + bind dengan interpolasi {{value}}", () => {
+  const yaml = `
+app:
+  title: Test Text Content
+sources:
+  alerts:
+    type: mock
+widgets:
+  - type: text
+    bind: alerts.message
+    content: "Info: {{value}}"
+  - type: text
+    bind: alerts.message
+    content: "Tanpa placeholder"
+`;
+  const res = compile(yaml);
+  assert.ok(res.ok, "YAML harus valid");
+  if (!res.ok) return;
+
+  const { container } = setupDOM();
+  const store = createStore();
+  const handle = mount(res.ast, container, { store, run: false });
+
+  const cards = Array.from(container.querySelectorAll<HTMLElement>('[data-type="text"]'));
+  const interpCard = cards[0]!;
+  const plainCard = cards[1]!;
+  const interpEl = interpCard.querySelector<HTMLElement>(".maera-text")!;
+  const plainEl = plainCard.querySelector<HTMLElement>(".maera-text")!;
+
+  // Sebelum ada nilai
+  assert.equal(interpEl.textContent, "Info: —");
+  assert.equal(plainEl.textContent, "Tanpa placeholder");
+
+  store.set("alerts", { message: "OK" });
+  assert.equal(interpEl.textContent, "Info: OK");
+  assert.equal(plainEl.textContent, "Tanpa placeholder");
+
+  handle.destroy();
+});
+
+test("widget chart merespons evaluasi steps: dengan memperbarui data-status dan caption", () => {
+  const yaml = `
+app:
+  title: Test Chart Steps
+sources:
+  sensor:
+    type: mock
+widgets:
+  - type: chart
+    bind: sensor.load
+    steps:
+      - at: 80
+        text: Kritis
+        status: danger
+      - at: 50
+        text: Waspada
+        status: warning
+      - text: Aman
+`;
+  const res = compile(yaml);
+  assert.ok(res.ok, "YAML harus valid");
+  if (!res.ok) return;
+
+  const { container } = setupDOM();
+  const store = createStore();
+  const handle = mount(res.ast, container, { store, run: false });
+
+  const card = container.querySelector<HTMLElement>('[data-type="chart"]')!;
+  const caption = card.querySelector<HTMLElement>(".maera-caption")!;
+
+  store.set("sensor", { load: 30 });
+  assert.equal(card.dataset["status"], undefined);
+  assert.equal(caption.textContent, "Aman");
+
+  store.set("sensor", { load: 60 });
+  assert.equal(card.dataset["status"], "warning");
+  assert.equal(caption.textContent, "Waspada");
+
+  store.set("sensor", { load: 90 });
+  assert.equal(card.dataset["status"], "danger");
+  assert.equal(caption.textContent, "Kritis");
+
+  handle.destroy();
+});
+
+test("widget text merespons evaluasi state: string dengan memperbarui data-status dan caption", () => {
+  const yaml = `
+app:
+  title: Test Text State
+sources:
+  alerts:
+    type: mock
+widgets:
+  - type: text
+    bind: alerts.code
+    content: "Code: {{value}}"
+    state:
+      threshold: "ERR_CONN"
+      equal:
+        status: danger
+        text: Koneksi Terputus
+`;
+  const res = compile(yaml);
+  assert.ok(res.ok, "YAML harus valid");
+  if (!res.ok) return;
+
+  const { container } = setupDOM();
+  const store = createStore();
+  const handle = mount(res.ast, container, { store, run: false });
+
+  const card = container.querySelector<HTMLElement>('[data-type="text"]')!;
+  const caption = card.querySelector<HTMLElement>(".maera-caption")!;
+  const textEl = card.querySelector<HTMLElement>(".maera-text")!;
+
+  store.set("alerts", { code: "OK" });
+  assert.equal(card.dataset["status"], undefined);
+  assert.equal(caption.textContent, "");
+  assert.equal(textEl.textContent, "Code: OK");
+
+  store.set("alerts", { code: "ERR_CONN" });
+  assert.equal(card.dataset["status"], "danger");
+  assert.equal(caption.textContent, "Koneksi Terputus");
+  assert.equal(textEl.textContent, "Code: ERR_CONN");
+
+  handle.destroy();
+});
+
+test("widget switch merespons evaluasi steps: boolean dengan memperbarui data-status dan caption", () => {
+  const yaml = `
+app:
+  title: Test Switch Steps
+sources:
+  device:
+    type: mock
+widgets:
+  - type: switch
+    bind: device.active
+    steps:
+      - at: true
+        text: Aktif
+        status: ok
+      - at: false
+        text: Nonaktif
+        status: warning
+`;
+  const res = compile(yaml);
+  assert.ok(res.ok, "YAML harus valid");
+  if (!res.ok) return;
+
+  const { container } = setupDOM();
+  const store = createStore();
+  const handle = mount(res.ast, container, { store, run: false });
+
+  const card = container.querySelector<HTMLElement>('[data-type="switch"]')!;
+  const caption = card.querySelector<HTMLElement>(".maera-caption")!;
+
+  store.set("device", { active: true });
+  assert.equal(card.dataset["status"], "ok");
+  assert.equal(caption.textContent, "Aktif");
+
+  store.set("device", { active: false });
+  assert.equal(card.dataset["status"], "warning");
+  assert.equal(caption.textContent, "Nonaktif");
+
+  handle.destroy();
+});
+
+test("widget slider merespons evaluasi steps: dengan memperbarui data-status dan caption", () => {
+  const yaml = `
+app:
+  title: Test Slider Steps
+sources:
+  device:
+    type: mock
+widgets:
+  - type: slider
+    bind: device.level
+    min: 0
+    max: 100
+    steps:
+      - at: 80
+        text: Tinggi
+        status: danger
+      - text: Normal
+`;
+  const res = compile(yaml);
+  assert.ok(res.ok, "YAML harus valid");
+  if (!res.ok) return;
+
+  const { container } = setupDOM();
+  const store = createStore();
+  const handle = mount(res.ast, container, { store, run: false });
+
+  const card = container.querySelector<HTMLElement>('[data-type="slider"]')!;
+  const caption = card.querySelector<HTMLElement>(".maera-caption")!;
+
+  store.set("device", { level: 50 });
+  assert.equal(card.dataset["status"], undefined);
+  assert.equal(caption.textContent, "Normal");
+
+  store.set("device", { level: 90 });
+  assert.equal(card.dataset["status"], "danger");
+  assert.equal(caption.textContent, "Tinggi");
+
+  handle.destroy();
+});
+
+test("destroy() melepas subscription kondisi kartu dan binding text", () => {
+  const yaml = `
+app:
+  title: Test Destroy Cond
+sources:
+  alerts:
+    type: mock
+widgets:
+  - type: text
+    bind: alerts.message
+    content: "Info: {{value}}"
+    state:
+      threshold: "ERR"
+      equal:
+        status: danger
+        text: Bahaya
+`;
+  const res = compile(yaml);
+  assert.ok(res.ok, "YAML harus valid");
+  if (!res.ok) return;
+
+  const { container } = setupDOM();
+  const store = createStore();
+  const handle = mount(res.ast, container, { store, run: false });
+
+  const card = container.querySelector<HTMLElement>('[data-type="text"]')!;
+  const textEl = card.querySelector<HTMLElement>(".maera-text")!;
+  const caption = card.querySelector<HTMLElement>(".maera-caption")!;
+
+  store.set("alerts", { message: "hi" });
+  assert.equal(textEl.textContent, "Info: hi");
+  assert.equal(card.dataset["status"], undefined);
+
+  store.set("alerts", { message: "ERR" });
+  assert.equal(textEl.textContent, "Info: ERR");
+  assert.equal(card.dataset["status"], "danger");
+  assert.equal(caption.textContent, "Bahaya");
+
+  handle.destroy();
+
+  // Setelah destroy, DOM lama tidak berubah
+  store.set("alerts", { message: "changed" });
+  assert.equal(textEl.textContent, "Info: ERR");
+  assert.equal(card.dataset["status"], "danger");
+  assert.equal(caption.textContent, "Bahaya");
+  assert.equal(container.children.length, 0);
+});
+
 test("CSS di styles.ts memuat aturan @container, grid-auto-rows: minmax(var(--m-row-height, 110px), auto), serta grid-auto-flow: row", () => {
   assert.match(CSS, /container-type:\s*inline-size/);
   assert.match(CSS, /grid-template-columns:\s*repeat\(12,\s*minmax\(0,\s*1fr\)\)/);

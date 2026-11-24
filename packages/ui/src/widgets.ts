@@ -75,7 +75,6 @@ registerWidget("stat", (ctx) => {
   return follow(ctx, (v) => {
     value.textContent = formatValue(v, decimals);
     unit.textContent = v === undefined || v === null ? "" : unitOf(ctx);
-    applyOutcome(ctx, outcomeOf(ctx, v), caption);
   });
 });
 
@@ -108,13 +107,35 @@ registerWidget("gauge", (ctx) => {
     valueText.textContent = formatValue(v);
     unitText.textContent = v === undefined || v === null ? "" : unitOf(ctx);
     root.setAttribute("aria-label", `${node.title ?? "Gauge"}: ${formatValue(v)}`);
-    applyOutcome(ctx, outcomeOf(ctx, v), caption);
+    // Evaluasi kondisi ditangani universal di mount.ts
   });
 });
 
-registerWidget("text", ({ doc, body, node }) => {
+registerWidget("text", (ctx) => {
+  const { doc, body, node } = ctx;
   const content = node.props["content"];
-  body.append(el(doc, "p", "maera-text", typeof content === "string" ? content : ""));
+  const hasContent = typeof content === "string";
+  const p = el(doc, "p", "maera-text", hasContent ? content : "");
+  body.append(p);
+
+  if (!node.bind) return;
+
+  return follow(ctx, (v) => {
+    const display = v === undefined || v === null ? "—" : String(v);
+    if (!hasContent) {
+      p.textContent = display;
+      return;
+    }
+    if (content.includes("{{value}}")) {
+      p.textContent = content.split("{{value}}").join(display);
+      return;
+    }
+    if (v === undefined || v === null) {
+      p.textContent = content;
+      return;
+    }
+    p.textContent = content;
+  });
 });
 
 registerWidget("status", (ctx) => {
@@ -132,7 +153,6 @@ registerWidget("status", (ctx) => {
   return follow(ctx, (v) => {
     // 1) state:/steps: untuk data angka. Titik menyala hanya jika ada `status`.
     const out = outcomeOf(ctx, v);
-    applyOutcome(ctx, out);
     if (out) {
       wrap.dataset["state"] = out.status ? "on" : "off";
       label.textContent = out.text ?? "";

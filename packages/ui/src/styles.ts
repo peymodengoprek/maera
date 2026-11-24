@@ -71,8 +71,8 @@ export const CSS = `
 .maera-status[data-state="unknown"] .maera-status-label{color:var(--m-muted)}
 .maera-chart-svg{display:block;width:100%;height:100%;min-height:100px;flex:1 1 auto}
 .maera-chart-grid{stroke:var(--m-border);stroke-width:1;vector-effect:non-scaling-stroke}
-.maera-chart-area{fill:var(--m-accent);opacity:.14;stroke:none}
-.maera-chart-line{fill:none;stroke:var(--m-accent);stroke-width:2;stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke}
+.maera-chart-area{fill:var(--m-status,var(--m-accent));opacity:.14;stroke:none}
+.maera-chart-line{fill:none;stroke:var(--m-status,var(--m-accent));stroke-width:2;stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke}
 .maera-chart-meta{display:flex;justify-content:space-between;gap:12px;margin-top:8px;font-size:.8rem;color:var(--m-muted);font-variant-numeric:tabular-nums;flex:none}
 .maera-chart-now{color:var(--m-text);font-weight:600}
 .maera-text{margin:0;line-height:1.5}

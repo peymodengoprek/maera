@@ -1,4 +1,4 @@
-import { createStore, startSources, type maeraAST, type Store } from "@maera-js/core";
+import { createStore, startSources, evaluate, type maeraAST, type Store } from "@maera-js/core";
 import { el } from "./dom.js";
 import { injectStyles } from "./styles.js";
 import { getRenderer } from "./widgets.js";
@@ -69,6 +69,28 @@ export function mount(ast: maeraAST, container: HTMLElement, opts: MountOptions 
       if (cleanup) cleanups.push(cleanup);
     } catch (e) {
       body.replaceChildren(el(doc, "p", "maera-unsupported", `Gagal merender widget: ${(e as Error).message}`));
+      continue;
+    }
+
+    // Evaluasi universal state:/steps: di level kartu (semua 7 widget).
+    if (node.conditional) {
+      let caption = card.querySelector<HTMLElement>(".maera-caption");
+      if (!caption) {
+        caption = el(doc, "div", "maera-caption");
+        body.append(caption);
+      }
+      const applyCond = (v: unknown) => {
+        const out = evaluate(node.conditional!, v);
+        if (out?.status) card.dataset["status"] = out.status;
+        else delete card.dataset["status"];
+        caption!.textContent = out?.text ?? "";
+      };
+      if (node.bind) {
+        applyCond(store.getBinding(node.bind));
+        cleanups.push(store.subBinding(node.bind, applyCond));
+      } else {
+        applyCond(undefined);
+      }
     }
   }
 
