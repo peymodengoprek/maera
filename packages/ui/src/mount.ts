@@ -1,4 +1,4 @@
-import { createStore, startSources, type maeraAST, type Store } from "@maera/core";
+import { createStore, startSources, type maeraAST, type Store } from "@maera-js/core";
 import { el } from "./dom.js";
 import { injectStyles } from "./styles.js";
 import { getRenderer } from "./widgets.js";
@@ -53,7 +53,7 @@ export function mount(ast: maeraAST, container: HTMLElement, opts: MountOptions 
 
     const renderer = getRenderer(node.type);
     if (!renderer) {
-      body.append(el(doc, "p", "maera-unsupported", `Widget '${node.type}' belum didukung oleh @maera/ui.`));
+      body.append(el(doc, "p", "maera-unsupported", `Widget '${node.type}' belum didukung oleh @maera-js/ui.`));
       continue;
     }
     try {

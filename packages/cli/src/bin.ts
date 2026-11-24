@@ -36,7 +36,7 @@ async function runSchema(args: string[]): Promise<void> {
       die(`Argumen tidak dikenal: '${a}'`, true);
     }
   }
-  const { generateSchema } = await import('@maera/core');
+  const { generateSchema } = await import('@maera-js/core');
   const out = path.resolve(process.cwd(), outArg ?? path.join('schema', 'maera.schema.json'));
   fs.mkdirSync(path.dirname(out), { recursive: true });
   fs.writeFileSync(out, `${JSON.stringify(generateSchema(), null, 2)}\n`);
@@ -100,8 +100,8 @@ function fail(e: unknown): never {
 const cliDir = path.dirname(fileURLToPath(import.meta.url));
 
 const entryCode = `
-import { compile } from "@maera/core";
-import { mount } from "@maera/ui";
+import { compile } from "@maera-js/core";
+import { mount } from "@maera-js/ui";
 import source from ${JSON.stringify(file)};
 
 const app = document.getElementById("app");
@@ -145,7 +145,7 @@ ${script}
 }
 
 const baseOptions: esbuild.BuildOptions = {
-  // resolveDir = lokasi CLI: @maera/core dan @maera/ui dicari dari node_modules milik CLI, bukan folder pengguna.
+  // resolveDir = lokasi CLI: @maera-js/core dan @maera-js/ui dicari dari node_modules milik CLI, bukan folder pengguna.
   stdin: { contents: entryCode, resolveDir: cliDir, sourcefile: 'maera-entry.js', loader: 'js' },
   bundle: true,
   format: 'iife',
@@ -182,7 +182,7 @@ async function runDev(): Promise<void> {
     ...baseOptions,
     outfile: path.join(tmp, 'app.js'),
     logLevel: 'info',
-    ...(inMonorepo && { alias: { '@maera/core': coreSrc, '@maera/ui': uiSrc } }),
+    ...(inMonorepo && { alias: { '@maera-js/core': coreSrc, '@maera-js/ui': uiSrc } }),
     banner: { js: `new EventSource('/esbuild').addEventListener('change', () => location.reload());` },
   });
   await ctx.watch();
@@ -201,7 +201,7 @@ async function runDev(): Promise<void> {
 
 async function runBuild(): Promise<void> {
   // Validasi lebih dulu supaya tidak mengirim halaman yang rusak.
-  const { compile } = await import('@maera/core');
+  const { compile } = await import('@maera-js/core');
   const result = compile(fs.readFileSync(file!, 'utf8'));
   const rel = path.relative(root, file!) || file!;
   if (!result.ok) {

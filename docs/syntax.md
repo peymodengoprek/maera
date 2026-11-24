@@ -2,7 +2,7 @@
 
 A Maera dashboard is a single YAML document saved with the `.maera` extension
 (for example `index.maera`). **One file defines one dashboard.** This reference
-documents every key accepted by the compiler in `@maera/core`.
+documents every key accepted by the compiler in `@maera-js/core`.
 
 - [Top-level structure](#top-level-structure)
 - [Sources](#sources)
@@ -370,7 +370,7 @@ values; the boolean `on`/`off` mapping is used only when no outcome matches.
 
 ## CLI reference
 
-The `@maera/cli` package exposes the `maera` command.
+The `@maera-js/cli` package exposes the `maera` command.
 
 ```text
 maera dev [file.maera]                    Development server with live reload (default command)

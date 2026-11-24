@@ -7,11 +7,11 @@ proyek ini memakai [Semantic Versioning](https://semver.org/lang/id/).
 
 ## [0.3.0] - 2026-11-24
 
-Rilis awal paket `@maera/core`, `@maera/ui`, dan `@maera/cli`.
+Rilis awal paket `@maera-js/core`, `@maera-js/ui`, dan `@maera-js/cli`.
 
 ### Added
 
-#### `@maera/core`
+#### `@maera-js/core`
 
 - Compiler `*.maera` berbasis YAML dengan validasi skema, pelacakan nomor baris,
   dan penolakan kunci tidak dikenal pada `app`, `source`, dan `widget`.
@@ -26,7 +26,7 @@ Rilis awal paket `@maera/core`, `@maera/ui`, dan `@maera/cli`.
 - Generator JSON Schema untuk `*.maera` dari satu sumber kebenaran
   (`WIDGET_SPECS`, `STATUS_LEVELS`).
 
-#### `@maera/ui`
+#### `@maera-js/ui`
 
 - Renderer DOM/SVG tanpa framework dengan grid 12 kolom dan tema terang/gelap
   melalui variabel CSS `--m-*`.
@@ -36,7 +36,7 @@ Rilis awal paket `@maera/core`, `@maera/ui`, dan `@maera/cli`.
 - Widget kontrol interaktif `switch` dan `slider` dengan indikator status
   "menunggu konfirmasi" dan penanganan kegagalan pengiriman.
 
-#### `@maera/cli`
+#### `@maera-js/cli`
 
 - Perintah `maera dev` dengan dev server, live reload, fallback port
   `3000`-`3009`, serta `HOST`/`PORT` yang dapat dikonfigurasi.

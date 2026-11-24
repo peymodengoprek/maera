@@ -25,7 +25,7 @@ With Maera, **1 file (`index.maera`) = 1 production-ready IoT dashboard**. You w
 ### 🌟 Highlights
 
 - **📄 Zero Boilerplate:** Write your entire dashboard interface and data subscriptions in a single `.maera` file.
-- **⚡ Reactive Data Core:** Powered by `@maera/core`, featuring built-in pub/sub state handling and lightweight REST polling & mock generators.
+- **⚡ Reactive Data Core:** Powered by `@maera-js/core`, featuring built-in pub/sub state handling and lightweight REST polling & mock generators.
 - **🎨 Modern & Responsive UI:** Pre-built responsive widgets (stat tiles, gauges, charts, status indicators) with automatic dark/light theme switching.
 - **🚀 Developer-First CLI:** Zero-config dev server with instant live reloading (`maera dev`) and quick static single-file builds (`maera build`).
 - **🛡️ Strictly Typed & Tested:** Zero-DOM core module written in pure TypeScript with step-by-step diagnostic line error tracing.
@@ -38,7 +38,7 @@ With Maera, **1 file (`index.maera`) = 1 production-ready IoT dashboard**. You w
 
 ```bash
 # Global installation via npm
-npm install -g @maera/cli
+npm install -g @maera-js/cli
 ```
 
 ### 2. Create your dashboard configuration
@@ -92,9 +92,9 @@ Maera is architected as a modular TypeScript monorepo using **npm workspaces**:
 ```text
 maera/
 ├── packages/
-│   ├── core/      # @maera/core — Zero-DOM YAML compiler & reactive store
-│   ├── ui/        # @maera/ui   — Modular DOM/SVG widget renderer & theme system
-│   └── cli/       # @maera/cli  — Developer CLI tools (dev server & builder)
+│   ├── core/      # @maera-js/core — Zero-DOM YAML compiler & reactive store
+│   ├── ui/        # @maera-js/ui   — Modular DOM/SVG widget renderer & theme system
+│   └── cli/       # @maera-js/cli  — Developer CLI tools (dev server & builder)
 ├── examples/      # Sample configuration files & playground demos
 └── README.md
 ```
@@ -103,9 +103,9 @@ maera/
 
 | Package | Description | Status |
 | :--- | :--- | :---: |
-| **`@maera/core`** | AST Compiler, schema validator, line-by-line error reporter, reactive pub-sub data store, and mock/REST data polling sources. | `v0.1.0` ✅ |
-| **`@maera/ui`** | Responsive 12-column grid layout, SVG gauge/chart renderers, theme engine (`--m-*`), and conditional state evaluators (`state:` / `steps:`). | `v0.1.0` ✅ |
-| **`@maera/cli`** | Command-line tool featuring instant dev server, esbuild watch-mode, live reload, and standalone static HTML bundle builder. | `v0.1.0` ✅ |
+| **`@maera-js/core`** | AST Compiler, schema validator, line-by-line error reporter, reactive pub-sub data store, and mock/REST data polling sources. | `v0.3.0` ✅ |
+| **`@maera-js/ui`** | Responsive 12-column grid layout, SVG gauge/chart renderers, theme engine (`--m-*`), and conditional state evaluators (`state:` / `steps:`). | `v0.3.0` ✅ |
+| **`@maera-js/cli`** | Command-line tool featuring instant dev server, esbuild watch-mode, live reload, and standalone static HTML bundle builder. | `v0.3.0` ✅ |
 
 ---
 

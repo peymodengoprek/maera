@@ -6,11 +6,11 @@ Legenda: [x] selesai & terverifikasi di lokal · [~] selesai di sandbox, menungg
 Label: core, ui, cli, docs, ci, release, test, dx, tooling, a11y, perf, enhancement.
 
 Checkpoint Sesi Berikutnya (Tutup Status [~])
-Terapkan 3 file yang tertunda di repositori lokal (pastikan penamaan di dalamnya sudah memakai @maera/* dan *.maera sesuai repo saat ini):
+Terapkan 3 file yang tertunda di repositori lokal (pastikan penamaan di dalamnya sudah memakai @maera-js/* dan *.maera sesuai repo saat ini):
 
 packages/cli/src/bin.ts (dukungan file .maera bebas & output 1 file HTML mandiri)
 
-packages/cli/package.json (tambah dependensi @maera/core dan @maera/ui)
+packages/cli/package.json (tambah dependensi @maera-js/core dan @maera-js/ui)
 
 package.json root (urutan build core -> ui -> cli; skrip demo diganti example)
 
@@ -28,7 +28,7 @@ Selesai ([x])
 
 [x] [ui] mount(), grid 12 kolom, tema terang/gelap lewat --m-*, widget stat, gauge, text.
 
-[x] [cli] Paket @maera/cli dengan maera dev dan maera build awal.
+[x] [cli] Paket @maera-js/cli dengan maera dev dan maera build awal.
 
 [x] [tooling] Highlighting YAML untuk *.maera (.vscode/settings.json, .gitattributes).
 
@@ -94,13 +94,13 @@ Dilengkapi pengujian otomatis menggunakan server tiruan (mock server).
 Issue #5: Jalur tulis store & widget kontrol interaktif (switch, slider)
 Label: core, ui, fase-3
 
-Konteks: Dibutuhkan jalur pengiriman perintah dari UI kembali ke source yang belum tersedia di @maera/core.
+Konteks: Dibutuhkan jalur pengiriman perintah dari UI kembali ke source yang belum tersedia di @maera-js/core.
 
 Kriteria Selesai:
 
-API tulis (write / publish) pada @maera/core dirancang dan didokumentasikan lebih dulu.
+API tulis (write / publish) pada @maera-js/core dirancang dan didokumentasikan lebih dulu.
 
-Widget switch dan slider terimplementasi di @maera/ui dengan indikator status "menunggu konfirmasi" serta penanganan jika pengiriman gagal.
+Widget switch dan slider terimplementasi di @maera-js/ui dengan indikator status "menunggu konfirmasi" serta penanganan jika pengiriman gagal.
 
 Issue #6: Generator JSON Schema untuk *.maera
 Label: tooling, fase-3
@@ -125,7 +125,7 @@ Halaman referensi sintaks mencakup semua widget, source, state, steps, daftar st
 
 Seluruh contoh di README.md sinkron dan teruji dengan examples/index.maera.
 
-Issue #8: Persiapan publikasi paket @maera/* ke npm
+Issue #8: Persiapan publikasi paket @maera-js/* ke npm
 Label: release
 
 Kriteria Selesai:
@@ -134,7 +134,7 @@ Ketersediaan organisasi/scope @maera di registry npm sudah diverifikasi dan dida
 
 Konfigurasi files dan exports tiap paket diverifikasi menggunakan npm pack --dry-run.
 
-Versi dependensi @maera/cli terhadap @maera/core dan @maera/ui sinkron.
+Versi dependensi @maera-js/cli terhadap @maera-js/core dan @maera-js/ui sinkron.
 
 CHANGELOG.md tersedia dan mencatat perubahan tidak kompatibel pra-rilis.
 

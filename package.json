@@ -7,11 +7,11 @@
   "engines": { "node": ">=18" },
   "scripts": {
     "dev": "tsx packages/cli/src/bin.ts dev",
-    "build": "npm run build -w @maera/core && npm run build -w @maera/ui && npm run build -w @maera/cli",
+    "build": "npm run build -w @maera-js/core && npm run build -w @maera-js/ui && npm run build -w @maera-js/cli",
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "check:example": "npm run check:example -w @maera/core",
-    "schema": "npm run build -w @maera/core && tsx packages/cli/src/bin.ts schema",
+    "check:example": "npm run check:example -w @maera-js/core",
+    "schema": "npm run build -w @maera-js/core && tsx packages/cli/src/bin.ts schema",
     "example": "npm run build && node packages/cli/dist/bin.js build examples/index.maera -o dist/example.html"
   },
   "devDependencies": {

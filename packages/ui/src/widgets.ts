@@ -1,4 +1,4 @@
-import { evaluate, type Outcome, type Store, type WidgetNode } from "@maera/core";
+import { evaluate, type Outcome, type Store, type WidgetNode } from "@maera-js/core";
 import { el, svg } from "./dom.js";
 import { EMPTY, chartPath, formatValue, ratio, toBool } from "./format.js";
 

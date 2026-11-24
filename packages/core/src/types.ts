@@ -1,5 +1,5 @@
 /**
- * Kontrak publik @maera/core: AST, Binding, Source, dan CompileError.
+ * Kontrak publik @maera-js/core: AST, Binding, Source, dan CompileError.
  * File ini murni tipe — tidak ada logika runtime.
  */
 
