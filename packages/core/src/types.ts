@@ -152,6 +152,8 @@ export interface Diagnostic {
   message: string;
   /** Nomor baris 1-based di index.maera, atau null jika tidak bisa dilacak */
   line: number | null;
+  /** Kolom 1-based bila parser dapat menentukannya */
+  column?: number | null;
   /** Jalur logis, mis. `widgets[1].bind` */
   path: string;
   /** Tingkat keparahan diagnostik */

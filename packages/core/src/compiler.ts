@@ -235,6 +235,17 @@ export function parseBinding(ref: string): Binding | null {
   return { s: s!, p };
 }
 
+/** Perkirakan kolom 1-based dari segmen jalur terakhir yang muncul di baris. */
+function findColumn(lineText: string, path: PathSeg[]): number | null {
+  for (let i = path.length - 1; i >= 0; i--) {
+    const seg = path[i];
+    if (typeof seg !== "string" || seg === "") continue;
+    const idx = lineText.indexOf(seg);
+    if (idx >= 0) return idx + 1;
+  }
+  return null;
+}
+
 function formatPath(path: PathSeg[]): string {
   return path.reduce<string>(
     (acc, seg) =>
@@ -295,6 +306,7 @@ export function compile(source: string): CompileResult {
   const infos: CompileError[] = [];
   const suppressed: CompileError[] = [];
   const lineIndex = buildLineIndex(source);
+  const sourceLines = source.split(/\r?\n/);
 
   const diag = (
     code: CompileErrorCode,
@@ -305,11 +317,13 @@ export function compile(source: string): CompileResult {
     group: string = currentGroup,
     suppressedFlag = false,
   ) => {
+    const line = lookupLine(lineIndex, path);
     const d: CompileError = {
       code,
       message: suggestion ? withSuggestion(message, suggestion) : message,
       path: formatPath(path),
-      line: lookupLine(lineIndex, path),
+      line,
+      column: line == null ? null : findColumn(sourceLines[line - 1] ?? "", path),
       severity,
       group,
       stage: group,
@@ -341,6 +355,7 @@ export function compile(source: string): CompileResult {
       code: "YAML_SYNTAX" as const,
       message: `Sintaks YAML tidak valid: ${ye.reason ?? ye.message}`,
       line: ye.mark ? ye.mark.line + 1 : null,
+      column: ye.mark ? ye.mark.column + 1 : null,
       path: "",
       severity: "error" as const,
       group: "yaml",

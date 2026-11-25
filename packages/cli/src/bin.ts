@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { buildDiagnosticOutput, diagnosticsPlugin, loadCore, useColor } from './diagnostics.js';
 
 const USAGE = `Pemakaian:
   maera dev [file.maera]                    Dev server dengan live reload (default)
@@ -99,7 +100,7 @@ function fail(e: unknown): never {
 
 const cliDir = path.dirname(fileURLToPath(import.meta.url));
 
-const entryCode = `
+const mountEntryCode = `
 import { compile } from "@maera-js/core";
 import { mount } from "@maera-js/ui";
 import source from ${JSON.stringify(file)};
@@ -124,6 +125,41 @@ if (!result.ok) {
 }
 `;
 
+const devEntryCode = `
+import { compile } from "@maera-js/core";
+import { mount } from "@maera-js/ui";
+import source from ${JSON.stringify(file)};
+import payload from "maera:diagnostics";
+
+const app = document.getElementById("app");
+window.__MAERA_DIAGNOSTICS__ = payload;
+window.dispatchEvent(new CustomEvent("maera:diagnostics", { detail: payload }));
+
+if (!payload.ok) {
+  app.setAttribute("data-maera-diagnostics", "error");
+  app.setAttribute("style", "padding:24px;font:14px/1.5 ui-monospace,Consolas,monospace;color:#b00020;white-space:pre-wrap");
+  app.textContent = payload.text || "Build gagal.";
+} else {
+  app.removeAttribute("data-maera-diagnostics");
+  const result = compile(source);
+  if (!result.ok) {
+    app.setAttribute("data-maera-diagnostics", "error");
+    app.setAttribute("style", "padding:24px;font:14px/1.5 ui-monospace,Consolas,monospace;color:#b00020;white-space:pre-wrap");
+    app.textContent = "Kompilasi browser gagal.";
+  } else {
+    document.title = result.ast.app.title;
+    const warned = new Set();
+    mount(result.ast, app, {
+      onError(name, error) {
+        if (warned.has(name)) return;
+        warned.add(name);
+        console.warn("[maera] source '" + name + "' gagal:", error);
+      },
+    });
+  }
+}
+`;
+
 const escapeHtml = (s: string): string =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -144,14 +180,14 @@ ${script}
 `;
 }
 
-const baseOptions: esbuild.BuildOptions = {
+const baseOptions = (contents: string): esbuild.BuildOptions => ({
   // resolveDir = lokasi CLI: @maera-js/core dan @maera-js/ui dicari dari node_modules milik CLI, bukan folder pengguna.
-  stdin: { contents: entryCode, resolveDir: cliDir, sourcefile: 'maera-entry.js', loader: 'js' },
+  stdin: { contents, resolveDir: cliDir, sourcefile: 'maera-entry.js', loader: 'js' },
   bundle: true,
   format: 'iife',
   target: 'es2022',
   loader: { [path.extname(file) || '.maera']: 'text' },
-};
+});
 
 // ── dev ─────────────────────────────────────────────────────────
 
@@ -179,9 +215,10 @@ async function runDev(): Promise<void> {
   fs.writeFileSync(path.join(tmp, 'index.html'), page('maera', '<script src="./app.js"></script>'));
 
   const ctx = await esbuild.context({
-    ...baseOptions,
+    ...baseOptions(devEntryCode),
     outfile: path.join(tmp, 'app.js'),
     logLevel: 'info',
+    plugins: [diagnosticsPlugin(file!)],
     ...(inMonorepo && { alias: { '@maera-js/core': coreSrc, '@maera-js/ui': uiSrc } }),
     banner: { js: `new EventSource('/esbuild').addEventListener('change', () => location.reload());` },
   });
@@ -201,16 +238,20 @@ async function runDev(): Promise<void> {
 
 async function runBuild(): Promise<void> {
   // Validasi lebih dulu supaya tidak mengirim halaman yang rusak.
-  const { compile } = await import('@maera-js/core');
-  const result = compile(fs.readFileSync(file!, 'utf8'));
+  const { compile } = await loadCore();
+  const source = fs.readFileSync(file!, 'utf8');
+  const result = compile(source);
   const rel = path.relative(root, file!) || file!;
-  if (!result.ok) {
-    for (const e of result.errors) console.error(`${rel}:${e.line ?? 1}  [${e.code}] ${e.path ? e.path + ': ' : ''}${e.message}`);
-    die(`\nBuild dibatalkan: ${result.errors.length} error di ${rel}.`);
+  const diagnostics = await buildDiagnosticOutput(result, source, rel, {
+    color: useColor(process.stderr),
+  });
+  if (diagnostics.text) process.stderr.write(`${diagnostics.text}\n`);
+  if (!result.ok || diagnostics.shouldAbort) {
+    die(`\nBuild dibatalkan: ${result.summary.errors} error di ${rel}.`);
   }
 
   const built = await esbuild.build({
-    ...baseOptions,
+    ...baseOptions(mountEntryCode),
     write: false,
     outfile: path.join(root, 'maera-app.js'),
     minify: true,
