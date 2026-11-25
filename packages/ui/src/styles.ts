@@ -58,7 +58,7 @@ export const CSS = `
 .maera-caption:empty{display:none}
 .maera-gauge+.maera-caption{text-align:center;flex:none}
 .maera-stat-unit{font-size:1rem;color:var(--m-muted)}
-.maera-gauge{display:block;width:100%;height:100%;max-width:260px;margin:auto;flex:1 1 auto}
+.maera-gauge{display:block;width:100%;height:100%;min-height:0;max-width:260px;max-height:170px;margin:auto;flex:1 1 auto}
 .maera-gauge-track{stroke:var(--m-track)}
 .maera-gauge-fill{stroke:var(--m-status,var(--m-accent));transition:stroke-dasharray .4s ease,stroke .3s}
 .maera-gauge-value{fill:var(--m-text);font-size:26px;font-weight:650;font-variant-numeric:tabular-nums}
@@ -69,7 +69,8 @@ export const CSS = `
 .maera-status[data-state="on"] .maera-status-dot{background:var(--m-status,var(--m-accent));box-shadow:0 0 0 5px color-mix(in srgb,var(--m-status,var(--m-accent)) 25%,transparent)}
 .maera-status[data-state="off"] .maera-status-dot{background:var(--m-muted)}
 .maera-status[data-state="unknown"] .maera-status-label{color:var(--m-muted)}
-.maera-chart-svg{display:block;width:100%;height:100%;min-height:100px;flex:1 1 auto}
+.maera-chart-body{height:100%;min-height:0;justify-content:flex-start}
+.maera-chart-svg{display:block;width:100%;height:100%;min-height:0;flex:1 1 auto}
 .maera-chart-grid{stroke:var(--m-border);stroke-width:1;vector-effect:non-scaling-stroke}
 .maera-chart-area{fill:var(--m-status,var(--m-accent));opacity:.14;stroke:none}
 .maera-chart-line{fill:none;stroke:var(--m-status,var(--m-accent));stroke-width:2;stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke}

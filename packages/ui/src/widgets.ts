@@ -392,6 +392,7 @@ registerWidget("chart", (ctx) => {
   const now = el(doc, "span", "maera-chart-now");
   const range = el(doc, "span", "maera-chart-range");
   meta.append(now, range);
+  body.classList.add("maera-chart-body");
   body.append(root, meta);
 
   const redraw = () => {

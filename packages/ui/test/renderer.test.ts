@@ -1056,6 +1056,67 @@ test("CSS di styles.ts memuat aturan @container, grid-auto-rows: minmax(var(--m-
   assert.match(CSS, /clamp\(/);
 });
 
+test("CSS chart mengizinkan penyusutan dan gauge memiliki batas ukuran proporsional", () => {
+  const chartBody = CSS.match(/\.maera-chart-body\s*\{([^}]+)\}/)?.[1] ?? "";
+  const chartSvg = CSS.match(/\.maera-chart-svg\s*\{([^}]+)\}/)?.[1] ?? "";
+  const gauge = CSS.match(/\.maera-gauge\s*\{([^}]+)\}/)?.[1] ?? "";
+
+  assert.match(chartBody, /min-height:\s*0/);
+  assert.match(chartBody, /height:\s*100%/);
+  assert.match(chartSvg, /min-height:\s*0/);
+  assert.match(chartSvg, /height:\s*100%/);
+  assert.doesNotMatch(chartSvg, /min-height:\s*100px/);
+
+  assert.match(gauge, /max-width:\s*[^;]+/);
+  assert.match(gauge, /max-height:\s*[^;]+/);
+  assert.match(gauge, /min-height:\s*0/);
+});
+
+test("widget chart rows: 1 dan gauge rows: 2 ter-render tanpa error", () => {
+  const yaml = `
+app:
+  title: Test Tinggi Chart
+sources:
+  dev:
+    type: mock
+widgets:
+  - type: chart
+    title: Grafik Ringkas
+    bind: dev.load
+    cols: 8
+    rows: 1
+  - type: gauge
+    title: Indikator Level
+    bind: dev.level
+    cols: 4
+    rows: 2
+    min: 0
+    max: 100
+`;
+  const res = compile(yaml);
+  assert.ok(res.ok, "YAML harus valid");
+  if (!res.ok) return;
+
+  const { container } = setupDOM();
+  const store = createStore();
+  store.set("dev", { load: 42, level: 65 });
+  const handle = mount(res.ast, container, { store, run: false });
+
+  const chartCard = container.querySelector<HTMLElement>('[data-type="chart"]')!;
+  const gaugeCard = container.querySelector<HTMLElement>('[data-type="gauge"]')!;
+
+  assert.equal(chartCard.style.gridRow, "span 1");
+  assert.ok(chartCard.querySelector<SVGElement>(".maera-chart-svg"), "Chart SVG harus ter-render");
+  assert.ok(chartCard.querySelector(".maera-widget-body.maera-chart-body"), "Wrapper chart harus memakai kelas penyusutan");
+
+  assert.equal(gaugeCard.style.gridRow, "span 2");
+  const gaugeValue = gaugeCard.querySelector<SVGElement>(".maera-gauge-value");
+  assert.ok(gaugeCard.querySelector<SVGElement>(".maera-gauge"), "Gauge SVG harus ter-render");
+  assert.equal(gaugeValue?.textContent, "65");
+
+  handle.destroy();
+});
+
 test("widget chart dan gauge ter-render utuh pada kartu dengan rows: 2", () => {
   const yaml = `
 app:
