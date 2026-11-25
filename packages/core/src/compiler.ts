@@ -31,10 +31,12 @@ export const WIDGET_SPECS: Record<WidgetType, WidgetSpec> = {
   gauge: {
     bind: "required",
     props: { min: "number", max: "number", unit: "string" },
+    rows: 2,
   },
   chart: {
     bind: "required",
     props: { points: "number", unit: "string", min: "number", max: "number" },
+    rows: 2,
   },
   status: { bind: "required", props: { on: "string", off: "string" } },
   text: { bind: "optional", props: { content: "string" } },

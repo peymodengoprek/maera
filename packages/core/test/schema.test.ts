@@ -93,7 +93,9 @@ test("generateSchema() valid sebagai JSON Schema dan sinkron dengan konstanta co
     assert.equal(rows["type"], "integer");
     assert.equal(rows["minimum"], 1);
     assert.equal(rows["maximum"], 6);
-    assert.equal(rows["default"], 1);
+    const type = constOf(w);
+    const expectedRows = type === "gauge" || type === "chart" ? 2 : 1;
+    assert.equal(rows["default"], expectedRows, `default rows untuk ${String(type)}`);
   }
 });
 

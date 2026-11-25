@@ -30,6 +30,7 @@ export const CSS = `
 .maera-widget, .maera-card{
   box-sizing:border-box;
   height:100%;
+  min-height:0;
   display:flex;
   flex-direction:column;
   min-width:0;
@@ -56,9 +57,10 @@ export const CSS = `
 .maera-stat-value{font-size:clamp(1.6rem, 5cqi, 2.4rem);font-weight:650;line-height:1.1;font-variant-numeric:tabular-nums;color:var(--m-status,var(--m-text));transition:color .3s}
 .maera-caption{margin-top:8px;font-size:.9rem;font-weight:600;color:var(--m-status,var(--m-muted))}
 .maera-caption:empty{display:none}
-.maera-gauge+.maera-caption{text-align:center;flex:none}
+.maera-gauge-stack{display:flex;flex-direction:column;align-items:center;min-height:0}
+.maera-gauge-body{position:relative;flex:1 1 auto;align-self:stretch;width:100%;min-height:0}
 .maera-stat-unit{font-size:1rem;color:var(--m-muted)}
-.maera-gauge{display:block;width:100%;height:100%;min-height:0;max-width:260px;max-height:170px;margin:auto;flex:1 1 auto}
+.maera-gauge{position:absolute;inset:0;display:block;width:100%;height:100%;margin:auto}
 .maera-gauge-track{stroke:var(--m-track)}
 .maera-gauge-fill{stroke:var(--m-status,var(--m-accent));transition:stroke-dasharray .4s ease,stroke .3s}
 .maera-gauge-value{fill:var(--m-text);font-size:26px;font-weight:650;font-variant-numeric:tabular-nums}
@@ -69,7 +71,7 @@ export const CSS = `
 .maera-status[data-state="on"] .maera-status-dot{background:var(--m-status,var(--m-accent));box-shadow:0 0 0 5px color-mix(in srgb,var(--m-status,var(--m-accent)) 25%,transparent)}
 .maera-status[data-state="off"] .maera-status-dot{background:var(--m-muted)}
 .maera-status[data-state="unknown"] .maera-status-label{color:var(--m-muted)}
-.maera-chart-body{position:relative;flex:1;min-height:32px;width:100%;justify-content:flex-start}
+.maera-chart-body{position:relative;flex:1;min-height:0;width:100%}
 .maera-chart-svg{position:absolute;inset:0;width:100%;height:100%;display:block}
 .maera-chart-grid{stroke:var(--m-border);stroke-width:1;vector-effect:non-scaling-stroke}
 .maera-chart-area{fill:var(--m-status,var(--m-accent));opacity:.14;stroke:none}
@@ -108,9 +110,61 @@ export const CSS = `
 .maera-control-status[data-kind="pending"]{color:var(--m-info)}
 .maera-control-status[data-kind="error"]{color:var(--m-danger)}
 .maera-unsupported{margin:0;color:var(--m-muted);font-size:.85rem;font-style:italic}
+.maera-widget[data-rows="1"] .maera-widget-body{gap:2px}
+.maera-widget[data-rows="1"] .maera-widget-title{margin-bottom:6px}
+.maera-widget[data-rows="1"] .maera-caption{margin-top:4px;font-size:.82rem}
+.maera-widget[data-rows="1"] .maera-chart-meta{margin-top:4px}
+.maera-widget:not([data-rows="1"]) .maera-widget-body{gap:clamp(8px, calc(var(--m-rows, 2) * 4px), 20px)}
+.maera-widget:not([data-rows="1"]) .maera-stat{justify-content:center}
+.maera-widget:not([data-rows="1"]) .maera-stat-value{font-size:clamp(2.2rem, calc(var(--m-rows, 2) * 0.9rem + 2cqi), 4rem)}
+.maera-widget:not([data-rows="1"]) .maera-caption{margin-top:clamp(8px, calc(var(--m-rows, 2) * 4px), 18px)}
+.maera-widget:not([data-rows="1"]) .maera-status{font-size:clamp(1.6rem, calc(var(--m-rows, 2) * 0.4rem + 1.2cqi), 2.6rem);gap:clamp(12px, calc(var(--m-rows, 2) * 4px), 22px)}
+.maera-widget:not([data-rows="1"]) .maera-status-dot{width:clamp(14px, calc(var(--m-rows, 2) * 4px), 24px);height:clamp(14px, calc(var(--m-rows, 2) * 4px), 24px)}
+.maera-widget:not([data-rows="1"]) .maera-text{font-size:clamp(1rem, calc(var(--m-rows, 2) * 0.15rem + 0.85rem), 1.35rem);line-height:1.6}
+.maera-widget:not([data-rows="1"]) .maera-switch{gap:clamp(8px, calc(var(--m-rows, 2) * 4px), 18px)}
+.maera-widget:not([data-rows="1"]) .maera-switch-input{transform:scale(1.15);transform-origin:left center}
+.maera-widget:not([data-rows="1"]) .maera-slider{gap:clamp(8px, calc(var(--m-rows, 2) * 4px), 18px)}
+.maera-widget:not([data-rows="1"]) .maera-slider-value{font-size:clamp(1.5rem, calc(var(--m-rows, 2) * 0.2rem + 1rem), 2.2rem)}
+.maera-widget[data-type="gauge"]{flex-direction:column;align-items:center}
+.maera-widget[data-type="gauge"] .maera-widget-body{
+  display:flex;flex-direction:column;align-items:center;width:100%;flex:1 1 auto;min-height:0;
+}
+.maera-widget[data-type="gauge"] .maera-gauge-stack{
+  flex:1 1 auto;align-self:stretch;width:100%;min-height:0;
+  display:flex;flex-direction:column;align-items:center;
+}
+.maera-widget[data-type="gauge"] .maera-caption{text-align:center;flex:none}
+.maera-widget[data-type="gauge"][data-rows="1"]{
+  flex-direction:row;align-items:stretch;justify-content:space-between;gap:12px;
+}
+.maera-widget[data-type="gauge"][data-rows="1"] .maera-widget-title{
+  align-self:flex-start;flex:1;min-width:0;margin:0;
+}
+.maera-widget[data-type="gauge"][data-rows="1"] .maera-widget-body{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  flex:0 0 auto;min-width:0;min-height:0;
+}
+.maera-widget[data-type="gauge"][data-rows="1"] .maera-gauge-stack{
+  height:100%;flex:0 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;
+}
+.maera-widget[data-type="gauge"][data-rows="1"] .maera-gauge-body{
+  flex:1 1 auto;min-height:0;width:auto;align-self:center;aspect-ratio:200/130;
+}
 @container (max-width: 599px){
   .maera-widget, .maera-card{grid-column:1/-1 !important;grid-row:auto !important}
   .maera-chart-body{min-height:56px}
+  .maera-gauge-body{min-height:56px}
+  .maera-widget[data-type="gauge"][data-rows="1"]{flex-direction:column;align-items:center}
+  .maera-widget[data-type="gauge"][data-rows="1"] .maera-widget-title{align-self:stretch;flex:none}
+  .maera-widget[data-type="gauge"][data-rows="1"] .maera-widget-body{
+    flex:1 1 auto;width:100%;align-self:stretch;
+  }
+  .maera-widget[data-type="gauge"][data-rows="1"] .maera-gauge-stack{
+    height:auto;width:100%;flex:1 1 auto;
+  }
+  .maera-widget[data-type="gauge"][data-rows="1"] .maera-gauge-body{
+    width:100%;align-self:stretch;min-height:120px;aspect-ratio:auto;
+  }
   .maera{padding:16px}
 }
 @container (min-width: 600px) and (max-width: 959px){

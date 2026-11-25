@@ -507,6 +507,58 @@ test("penerimaan dan default nilai cols (1..12) serta rows (1..6) di AST", () =>
   assert.equal(r2.ast.widgets[0]!.rows, 2);
 });
 
+test("default rows per tipe: gauge & chart 2, widget lain 1", () => {
+  const src = base(`  - type: gauge
+    bind: temp.value
+  - type: chart
+    bind: temp.value
+  - type: stat
+    bind: temp.value
+  - type: status
+    bind: temp.value
+  - type: text
+    content: Halo
+  - type: switch
+    bind: temp.value
+  - type: slider
+    bind: temp.value
+`);
+  const r = compile(src);
+  assert.equal(r.ok, true);
+  if (!r.ok) return;
+  const rows = Object.fromEntries(r.ast.widgets.map((w) => [w.type, w.rows]));
+  assert.equal(rows["gauge"], 2);
+  assert.equal(rows["chart"], 2);
+  assert.equal(rows["stat"], 1);
+  assert.equal(rows["status"], 1);
+  assert.equal(rows["text"], 1);
+  assert.equal(rows["switch"], 1);
+  assert.equal(rows["slider"], 1);
+});
+
+test("rows eksplisit menimpa default gauge & chart", () => {
+  const src = base(`  - type: gauge
+    bind: temp.value
+    rows: 1
+  - type: chart
+    bind: temp.value
+    rows: 1
+  - type: gauge
+    bind: temp.value
+    rows: 3
+  - type: chart
+    bind: temp.value
+    rows: 4
+`);
+  const r = compile(src);
+  assert.equal(r.ok, true);
+  if (!r.ok) return;
+  assert.deepEqual(
+    r.ast.widgets.map((w) => w.rows),
+    [1, 1, 3, 4],
+  );
+});
+
 test("cascade suppression: source invalid tidak memicu UNKNOWN_SOURCE", () => {
   const src = `app:
   title: T

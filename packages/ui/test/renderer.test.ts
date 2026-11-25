@@ -1056,29 +1056,64 @@ test("CSS di styles.ts memuat aturan @container, grid-auto-rows: minmax(var(--m-
   assert.match(CSS, /clamp\(/);
 });
 
-test("CSS chart mengizinkan penyusutan dan gauge memiliki batas ukuran proporsional", () => {
+test("CSS chart & gauge memakai wrapper relatif dengan svg absolut tanpa batas kaku", () => {
   const chartBody = CSS.match(/\.maera-chart-body\s*\{([^}]+)\}/)?.[1] ?? "";
   const chartSvg = CSS.match(/\.maera-chart-svg\s*\{([^}]+)\}/)?.[1] ?? "";
+  const gaugeBody = CSS.match(/\.maera-gauge-body\s*\{([^}]+)\}/)?.[1] ?? "";
   const gauge = CSS.match(/\.maera-gauge\s*\{([^}]+)\}/)?.[1] ?? "";
 
   assert.match(chartBody, /position:\s*relative/);
   assert.match(chartBody, /flex:\s*1/);
-  assert.match(chartBody, /min-height:\s*32px/);
+  assert.match(chartBody, /min-height:\s*0/);
   assert.match(chartBody, /width:\s*100%/);
   assert.match(chartSvg, /position:\s*absolute/);
   assert.match(chartSvg, /inset:\s*0/);
   assert.match(chartSvg, /width:\s*100%/);
   assert.match(chartSvg, /height:\s*100%/);
-  assert.doesNotMatch(chartSvg, /min-height:\s*100px/);
+  assert.doesNotMatch(chartSvg, /min-height/);
+  assert.doesNotMatch(chartSvg, /max-(width|height)/);
 
-  assert.match(
-    CSS,
-    /@container\s*\(max-width:\s*599px\)\s*\{[\s\S]*?\.maera-chart-body\s*\{[^}]*min-height:\s*56px/,
-  );
+  assert.match(gaugeBody, /position:\s*relative/);
+  assert.match(gaugeBody, /flex:\s*1/);
+  assert.match(gaugeBody, /min-height:\s*0/);
+  assert.match(gaugeBody, /width:\s*100%/);
+  assert.match(gauge, /position:\s*absolute/);
+  assert.match(gauge, /inset:\s*0/);
+  assert.match(gauge, /width:\s*100%/);
+  assert.match(gauge, /height:\s*100%/);
+  assert.doesNotMatch(gauge, /min-height:\s*[1-9]/);
+  assert.doesNotMatch(gauge, /max-(width|height)/);
+});
 
-  assert.match(gauge, /max-width:\s*[^;]+/);
-  assert.match(gauge, /max-height:\s*[^;]+/);
-  assert.match(gauge, /min-height:\s*0/);
+test("CSS @container mobile menjaga min-height fallback chart & gauge body", () => {
+  const mobile = CSS.match(/@container\s*\(max-width:\s*599px\)\s*\{([\s\S]*?)\n\}/)?.[1] ?? "";
+
+  assert.ok(mobile, "Blok @container (max-width: 599px) harus ada");
+  assert.match(mobile, /\.maera-chart-body\s*\{[^}]*min-height:\s*56px/);
+  assert.match(mobile, /\.maera-gauge-body\s*\{[^}]*min-height:\s*56px/);
+});
+
+test("CSS konten seluruh widget beradaptasi lewat atribut data-rows", () => {
+  assert.ok(CSS.includes('.maera-widget[data-rows="1"]'), "Aturan ringkas rows: 1 harus ada");
+
+  const adaptiveSelectors = [
+    ".maera-stat-value",
+    ".maera-status",
+    ".maera-status-dot",
+    ".maera-text",
+    ".maera-switch",
+    ".maera-switch-input",
+    ".maera-slider",
+    ".maera-slider-value",
+  ];
+  for (const selector of adaptiveSelectors) {
+    assert.ok(
+      CSS.includes(`.maera-widget:not([data-rows="1"]) ${selector}`),
+      `Aturan adaptif rows >= 2 untuk ${selector} harus ada`,
+    );
+  }
+
+  assert.doesNotMatch(CSS, /\.maera-gauge\s*\{[^}]*max-(width|height)/);
 });
 
 test("widget chart rows: 1 dan gauge rows: 2 ter-render tanpa error", () => {
@@ -1116,7 +1151,7 @@ widgets:
 
   assert.equal(chartCard.style.gridRow, "span 1");
   assert.ok(chartCard.querySelector<SVGElement>(".maera-chart-svg"), "Chart SVG harus ter-render");
-  assert.ok(chartCard.querySelector(".maera-widget-body.maera-chart-body"), "Wrapper chart harus memakai kelas penyusutan");
+  assert.ok(chartCard.querySelector(".maera-chart-body > .maera-chart-svg"), "Chart SVG harus berada di dalam wrapper relatif");
 
   assert.equal(gaugeCard.style.gridRow, "span 2");
   const gaugeValue = gaugeCard.querySelector<SVGElement>(".maera-gauge-value");
@@ -1187,4 +1222,204 @@ widgets:
   assert.equal(gaugeValue?.textContent, "70");
 
   handle.destroy();
+});
+
+test("seluruh 7 widget ter-render bersih pada rows: 1 dan rows: 2", () => {
+  const yaml = `
+app:
+  title: Test Semua Widget Rows
+sources:
+  dev:
+    type: mock
+widgets:
+  - type: stat
+    bind: dev.value
+    rows: 1
+  - type: stat
+    bind: dev.value
+    rows: 2
+  - type: gauge
+    bind: dev.value
+    rows: 1
+  - type: gauge
+    bind: dev.value
+    rows: 2
+  - type: chart
+    bind: dev.value
+    rows: 1
+  - type: chart
+    bind: dev.value
+    rows: 2
+  - type: status
+    bind: dev.active
+    rows: 1
+  - type: status
+    bind: dev.active
+    rows: 2
+  - type: text
+    bind: dev.message
+    rows: 1
+  - type: text
+    bind: dev.message
+    rows: 2
+  - type: switch
+    bind: dev.active
+    rows: 1
+  - type: switch
+    bind: dev.active
+    rows: 2
+  - type: slider
+    bind: dev.value
+    rows: 1
+  - type: slider
+    bind: dev.value
+    rows: 2
+`;
+  const res = compile(yaml);
+  assert.ok(res.ok, "YAML harus valid");
+  if (!res.ok) return;
+
+  const { container } = setupDOM();
+  const store = createStore();
+  store.set("dev", { value: 42, active: true, message: "halo" });
+  const handle = mount(res.ast, container, { store, run: false });
+
+  assert.equal(container.querySelectorAll(".maera-widget").length, 14);
+
+  const expected: Record<string, string> = {
+    stat: ".maera-stat-value",
+    gauge: ".maera-gauge-body > .maera-gauge",
+    chart: ".maera-chart-body > .maera-chart-svg",
+    status: ".maera-status",
+    text: ".maera-text",
+    switch: ".maera-switch-input",
+    slider: ".maera-slider-input",
+  };
+
+  for (const [type, selector] of Object.entries(expected)) {
+    for (const rows of ["1", "2"]) {
+      const card = container.querySelector<HTMLElement>(`[data-type="${type}"][data-rows="${rows}"]`);
+      assert.ok(card, `${type} rows: ${rows} harus ter-render`);
+      assert.equal(card!.style.gridRow, `span ${rows}`);
+      assert.equal(card!.dataset["rows"], rows);
+      assert.equal(card!.querySelectorAll(".maera-unsupported").length, 0);
+      assert.ok(card!.querySelector(selector), `${type} rows: ${rows} harus memiliki ${selector}`);
+    }
+  }
+
+  handle.destroy();
+});
+
+test("gauge rows: 1 dan rows: 2 menempatkan caption tepat di bawah gauge body di dalam stack", () => {
+  const yaml = `
+app:
+  title: Test Gauge Layout
+sources:
+  dev:
+    type: mock
+widgets:
+  - type: gauge
+    title: Horizontal
+    bind: dev.level
+    min: 0
+    max: 100
+    rows: 1
+  - type: gauge
+    title: Vertikal
+    bind: dev.level
+    min: 0
+    max: 100
+    rows: 2
+`;
+  const res = compile(yaml);
+  assert.ok(res.ok, "YAML harus valid");
+  if (!res.ok) return;
+
+  const { container } = setupDOM();
+  const store = createStore();
+  store.set("dev", { level: 42 });
+  const handle = mount(res.ast, container, { store, run: false });
+
+  for (const rows of ["1", "2"]) {
+    const card = container.querySelector<HTMLElement>(`[data-type="gauge"][data-rows="${rows}"]`);
+    assert.ok(card, `gauge rows: ${rows} harus ter-render`);
+    assert.equal(card!.dataset["rows"], rows);
+
+    const stack = card!.querySelector<HTMLElement>(":scope > .maera-widget-body > .maera-gauge-stack");
+    const body = stack?.querySelector<HTMLElement>(":scope > .maera-gauge-body");
+    const title = card!.querySelector<HTMLElement>(":scope > .maera-widget-title");
+    const caption = stack?.querySelector<HTMLElement>(":scope > .maera-caption");
+
+    assert.ok(stack, `gauge rows: ${rows} harus punya .maera-gauge-stack di dalam body`);
+    assert.ok(body, `gauge rows: ${rows} harus punya .maera-gauge-body`);
+    assert.ok(title, `judul gauge rows: ${rows} harus berada langsung di kartu`);
+    assert.ok(caption, `caption gauge rows: ${rows} harus berada di dalam .maera-gauge-stack`);
+    assert.equal(stack!.children.length, 2, `stack gauge rows: ${rows} hanya berisi body + caption`);
+    assert.equal(stack!.children[0], body, "gauge body harus berada sebelum caption");
+    assert.equal(stack!.children[1], caption, "caption harus berada tepat di bawah gauge body");
+    assert.equal(caption!.previousElementSibling, body, "caption harus mengikuti gauge body di DOM");
+    assert.ok(body!.querySelector<SVGElement>(":scope > .maera-gauge"), "SVG gauge harus di dalam .maera-gauge-body");
+  }
+
+  handle.destroy();
+});
+
+test("CSS gauge default/rows >= 2 tidak kolaps dan mode rows: 1 horizontal dengan fallback sempit", () => {
+  const stack = CSS.match(/\.maera-gauge-stack\s*\{([^}]+)\}/)?.[1] ?? "";
+  assert.match(stack, /display:\s*flex/);
+  assert.match(stack, /flex-direction:\s*column/);
+  assert.match(stack, /align-items:\s*center/);
+  assert.match(stack, /min-height:\s*0/);
+
+  const gaugeBody = CSS.match(/\.maera-gauge-body\s*\{([^}]+)\}/)?.[1] ?? "";
+  assert.match(gaugeBody, /position:\s*relative/);
+  assert.match(gaugeBody, /flex:\s*1 1 auto/);
+  assert.match(gaugeBody, /align-self:\s*stretch/);
+  assert.match(gaugeBody, /width:\s*100%/);
+  assert.match(gaugeBody, /min-height:\s*0/);
+
+  const vertical = CSS.match(/\.maera-widget\[data-type="gauge"\]\s*\{([^}]+)\}/)?.[1] ?? "";
+  assert.match(vertical, /flex-direction:\s*column/);
+  assert.match(vertical, /align-items:\s*center/);
+
+  const verticalStack = CSS.match(/\.maera-widget\[data-type="gauge"\]\s+\.maera-gauge-stack\s*\{([^}]+)\}/)?.[1] ?? "";
+  assert.match(verticalStack, /flex:\s*1 1 auto/);
+  assert.match(verticalStack, /align-self:\s*stretch/);
+  assert.match(verticalStack, /width:\s*100%/);
+  assert.match(verticalStack, /min-height:\s*0/);
+
+  const horizontal = CSS.match(/\.maera-widget\[data-type="gauge"\]\[data-rows="1"\]\s*\{([^}]+)\}/)?.[1] ?? "";
+  assert.match(horizontal, /flex-direction:\s*row/);
+  assert.match(horizontal, /align-items:\s*stretch/);
+  assert.match(horizontal, /justify-content:\s*space-between/);
+  assert.match(horizontal, /gap:\s*12px/);
+
+  const horizontalTitle = CSS.match(/\.maera-widget\[data-type="gauge"\]\[data-rows="1"\]\s+\.maera-widget-title\s*\{([^}]+)\}/)?.[1] ?? "";
+  assert.match(horizontalTitle, /align-self:\s*flex-start/);
+  assert.match(horizontalTitle, /flex:\s*1/);
+  assert.match(horizontalTitle, /min-width:\s*0/);
+
+  const horizontalStack = CSS.match(/\.maera-widget\[data-type="gauge"\]\[data-rows="1"\]\s+\.maera-gauge-stack\s*\{([^}]+)\}/)?.[1] ?? "";
+  assert.match(horizontalStack, /height:\s*100%/);
+  assert.match(horizontalStack, /flex:\s*0 0 auto/);
+  assert.match(horizontalStack, /display:\s*flex/);
+  assert.match(horizontalStack, /flex-direction:\s*column/);
+  assert.match(horizontalStack, /align-items:\s*center/);
+  assert.match(horizontalStack, /justify-content:\s*center/);
+
+  const horizontalGaugeBody = CSS.match(/\.maera-widget\[data-type="gauge"\]\[data-rows="1"\]\s+\.maera-gauge-body\s*\{([^}]+)\}/)?.[1] ?? "";
+  assert.match(horizontalGaugeBody, /flex:\s*1 1 auto/);
+  assert.match(horizontalGaugeBody, /min-height:\s*0/);
+  assert.match(horizontalGaugeBody, /aspect-ratio:\s*200\s*\/\s*130/);
+
+  const mobile = CSS.match(/@container\s*\(max-width:\s*599px\)\s*\{([\s\S]*?)\n\}/)?.[1] ?? "";
+  assert.ok(mobile, "Blok @container (max-width: 599px) harus ada");
+  assert.match(
+    mobile,
+    /\.maera-widget\[data-type="gauge"\]\[data-rows="1"\]\s*\{[^}]*flex-direction:\s*column/,
+  );
+  assert.match(
+    mobile,
+    /\.maera-widget\[data-type="gauge"\]\[data-rows="1"\]\s+\.maera-gauge-body\s*\{[^}]*min-height:\s*120px/,
+  );
 });

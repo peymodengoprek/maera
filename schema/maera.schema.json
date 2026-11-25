@@ -503,7 +503,7 @@
                 "type": "integer",
                 "minimum": 1,
                 "maximum": 6,
-                "default": 1,
+                "default": 2,
                 "description": "Tinggi widget dalam baris grid (1-6)."
               },
               "bind": {
@@ -766,7 +766,7 @@
                 "type": "integer",
                 "minimum": 1,
                 "maximum": 6,
-                "default": 1,
+                "default": 2,
                 "description": "Tinggi widget dalam baris grid (1-6)."
               },
               "bind": {

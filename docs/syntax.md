@@ -187,14 +187,18 @@ with `bind`. Unknown properties are compile errors.
 | `type` | string | ✅ | — | One of `stat`, `gauge`, `chart`, `status`, `text`, `switch`, `slider`. |
 | `title` | string | ❌ | — | Optional widget title. |
 | `cols` | integer | ❌ | `3` | Width in grid columns, integer from `1` to `12`. |
-| `rows` | integer | ❌ | `1` | Height in grid rows, integer from `1` to `6`. |
+| `rows` | integer | ❌ | `2` for `gauge`/`chart`, `1` otherwise | Height in grid rows, integer from `1` to `6`. |
 | `bind` | string | ✅* | — | `<source>.<path>` binding. Required for every widget except `text`. |
 
 \* `text` may omit `bind` when `content` is provided.
 
 The grid is fixed at 12 columns wide. A widget with `cols: 6` occupies half of
 the grid; `cols: 12` occupies a full row. `rows` defines the vertical span of
-the widget in rows (1 to 6).
+the widget in rows (1 to 6). When omitted, `gauge` and `chart` default to
+`rows: 2`; every other widget defaults to `rows: 1`. An explicit `rows` value
+always overrides the default. A `gauge` with `rows: 1` switches to a horizontal
+layout on wide screens (title and status on the left, arc on the right) and
+falls back to a vertical layout on narrow screens.
 
 All widget types support [`state` / `steps`](#conditions-state-and-steps).
 
