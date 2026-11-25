@@ -126,6 +126,90 @@ export const CSS = `
     grid-row:span var(--m-rows, 1);
   }
 }
+.maera-diagnostics-overlay{
+  position:fixed;inset:0;z-index:2147483000;
+  display:flex;align-items:flex-start;justify-content:center;
+  padding:clamp(16px,4vw,40px);overflow:auto;
+  background:rgba(4,8,12,.86);color:#f2f7fb;
+  font-family:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;
+}
+.maera-diagnostics{
+  width:min(1040px,100%);background:#0f1720;color:#f2f7fb;
+  border:1px solid #33465a;border-radius:14px;
+  box-shadow:0 24px 80px rgba(0,0,0,.55);overflow:hidden;
+}
+.maera-diagnostics-header{
+  display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:16px;
+  padding:20px 24px;background:#16232f;border-bottom:1px solid #33465a;
+}
+.maera-diagnostics-kicker{margin:0 0 4px;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:#9fb3c8}
+.maera-diagnostics-title{margin:0;font-size:1.35rem;font-weight:700;color:#ffd7d7}
+.maera-diagnostics-summary{margin:8px 0 0;font-size:.82rem;color:#c6d4e1}
+.maera-diagnostics-actions{display:flex;gap:8px;flex-wrap:wrap}
+.maera-diagnostics-actions button{
+  font:inherit;font-size:.82rem;font-weight:700;border-radius:8px;
+  padding:8px 14px;cursor:pointer;border:1px solid transparent;
+}
+.maera-diagnostics-copy{background:#5eead4;color:#04211d;border-color:#99f6e4}
+.maera-diagnostics-close{background:#f8fafc;color:#0f1720;border-color:#cbd5e1}
+.maera-diagnostics-actions button:hover{filter:brightness(1.08)}
+.maera-diagnostics-actions button:focus-visible{outline:3px solid #fbbf24;outline-offset:2px}
+.maera-diagnostics-copy[data-state="failed"]{background:#ffd7d7;color:#6b0f0f}
+.maera-diagnostics-body{
+  padding:20px 24px 24px;display:flex;flex-direction:column;gap:18px;
+  max-height:calc(100vh - 220px);overflow:auto;
+}
+.maera-diagnostic{
+  background:#0b1218;border:1px solid #2a3a4a;border-left:4px solid #ff8f8f;
+  border-radius:10px;padding:16px;
+}
+.maera-diagnostic-meta{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:10px}
+.maera-diagnostic-code{
+  background:#ff8f8f;color:#2a0505;border-radius:6px;padding:2px 8px;
+  font-size:.72rem;font-weight:800;letter-spacing:.04em;
+}
+.maera-diagnostic-location{font-size:.8rem;color:#d7e2ec;font-weight:700}
+.maera-diagnostic-path{font-size:.76rem;color:#9fb3c8}
+.maera-diagnostic-message{margin:0 0 8px;font-size:.9rem;line-height:1.5;color:#f2f7fb}
+.maera-diagnostic-suggestion{margin:0 0 12px;font-size:.84rem;color:#bae6fd}
+.maera-diagnostic-suggestion code{background:#153046;color:#e0f2fe;border-radius:4px;padding:1px 5px}
+.maera-code-frame{
+  margin:0;background:#060b10;border:1px solid #223140;border-radius:8px;
+  padding:12px 14px;overflow:auto;font-size:.8rem;line-height:1.55;color:#dbe7f1;
+}
+.maera-code-frame-body{font:inherit;white-space:pre;display:block}
+.maera-code-frame-line{display:block;padding:0 6px;border-left:2px solid transparent}
+.maera-code-frame-line[data-highlight="true"]{
+  background:rgba(255,143,143,.16);border-left-color:#ff8f8f;color:#ffe4e4;font-weight:700;
+}
+.maera-code-frame-gutter{display:inline-block;width:2.5em;text-align:right;color:#7c8b99;user-select:none}
+.maera-code-frame-line[data-highlight="true"] .maera-code-frame-gutter{color:#ffb4b4}
+.maera-code-frame-caret{color:#ff8f8f}
+.maera-diagnostics-panel{
+  position:fixed;right:16px;bottom:16px;z-index:2147482000;
+  width:min(380px,calc(100vw - 32px));
+  background:#0f1720;color:#f2f7fb;border:1px solid #b45309;border-radius:12px;
+  box-shadow:0 16px 40px rgba(0,0,0,.4);overflow:hidden;
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+.maera-diagnostics-panel-toggle{
+  display:flex;align-items:center;gap:10px;width:100%;padding:10px 14px;
+  background:#1f2937;color:#fef3c7;border:0;font:inherit;font-size:.85rem;
+  font-weight:700;text-align:left;cursor:pointer;
+}
+.maera-diagnostics-panel-toggle:focus-visible{outline:3px solid #fbbf24;outline-offset:-3px}
+.maera-diagnostics-panel-icon{
+  display:inline-flex;align-items:center;justify-content:center;flex:none;
+  width:20px;height:20px;border-radius:50%;background:#fbbf24;color:#3b2503;font-weight:900;
+}
+.maera-diagnostics-panel-list{list-style:none;margin:0;padding:0;max-height:40vh;overflow:auto}
+.maera-diagnostics-panel[data-open="false"] .maera-diagnostics-panel-list{display:none}
+.maera-diagnostics-panel-item{
+  display:flex;flex-wrap:wrap;gap:8px;padding:10px 14px;
+  border-top:1px solid #2a3a4a;font-size:.8rem;
+}
+.maera-diagnostics-panel-item .maera-diagnostic-code{background:#fbbf24;color:#3b2503}
+.maera-diagnostics-panel-item[data-severity="info"] .maera-diagnostic-code{background:#60a5fa;color:#041a33}
 `;
 
 /** Pasang gaya sekali per dokumen (idempoten). */

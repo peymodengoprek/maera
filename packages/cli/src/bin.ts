@@ -127,37 +127,34 @@ if (!result.ok) {
 
 const devEntryCode = `
 import { compile } from "@maera-js/core";
-import { mount } from "@maera-js/ui";
+import { createDiagnosticsView, mount } from "@maera-js/ui";
 import source from ${JSON.stringify(file)};
 import payload from "maera:diagnostics";
 
 const app = document.getElementById("app");
+let active;
+
 window.__MAERA_DIAGNOSTICS__ = payload;
 window.dispatchEvent(new CustomEvent("maera:diagnostics", { detail: payload }));
 
-if (!payload.ok) {
-  app.setAttribute("data-maera-diagnostics", "error");
-  app.setAttribute("style", "padding:24px;font:14px/1.5 ui-monospace,Consolas,monospace;color:#b00020;white-space:pre-wrap");
-  app.textContent = payload.text || "Build gagal.";
-} else {
-  app.removeAttribute("data-maera-diagnostics");
-  const result = compile(source);
-  if (!result.ok) {
-    app.setAttribute("data-maera-diagnostics", "error");
-    app.setAttribute("style", "padding:24px;font:14px/1.5 ui-monospace,Consolas,monospace;color:#b00020;white-space:pre-wrap");
-    app.textContent = "Kompilasi browser gagal.";
-  } else {
+const view = createDiagnosticsView(document, {
+  render() {
+    const result = compile(source);
+    if (!result.ok) return;
+    active?.destroy();
     document.title = result.ast.app.title;
     const warned = new Set();
-    mount(result.ast, app, {
+    active = mount(result.ast, app, {
       onError(name, error) {
         if (warned.has(name)) return;
         warned.add(name);
         console.warn("[maera] source '" + name + "' gagal:", error);
       },
     });
-  }
-}
+  },
+});
+
+view.update(payload);
 `;
 
 const escapeHtml = (s: string): string =>

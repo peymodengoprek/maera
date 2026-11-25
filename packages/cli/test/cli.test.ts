@@ -207,6 +207,8 @@ test("maera dev mengirim payload diagnostik ke app.js", async () => {
     assert.match(code, /"ok":\s*false/);
     assert.match(code, /UNKNOWN_WIDGET/);
     assert.match(code, /__MAERA_DIAGNOSTICS__/);
+    assert.match(code, /maera-diagnostics-overlay/);
+    assert.match(code, /createDiagnosticsView/);
   } finally {
     stopProcess(child);
     fs.rmSync(dir, { recursive: true, force: true });
