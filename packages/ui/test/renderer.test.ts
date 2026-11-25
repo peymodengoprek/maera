@@ -1061,11 +1061,20 @@ test("CSS chart mengizinkan penyusutan dan gauge memiliki batas ukuran proporsio
   const chartSvg = CSS.match(/\.maera-chart-svg\s*\{([^}]+)\}/)?.[1] ?? "";
   const gauge = CSS.match(/\.maera-gauge\s*\{([^}]+)\}/)?.[1] ?? "";
 
-  assert.match(chartBody, /min-height:\s*0/);
-  assert.match(chartBody, /height:\s*100%/);
-  assert.match(chartSvg, /min-height:\s*0/);
+  assert.match(chartBody, /position:\s*relative/);
+  assert.match(chartBody, /flex:\s*1/);
+  assert.match(chartBody, /min-height:\s*32px/);
+  assert.match(chartBody, /width:\s*100%/);
+  assert.match(chartSvg, /position:\s*absolute/);
+  assert.match(chartSvg, /inset:\s*0/);
+  assert.match(chartSvg, /width:\s*100%/);
   assert.match(chartSvg, /height:\s*100%/);
   assert.doesNotMatch(chartSvg, /min-height:\s*100px/);
+
+  assert.match(
+    CSS,
+    /@container\s*\(max-width:\s*599px\)\s*\{[\s\S]*?\.maera-chart-body\s*\{[^}]*min-height:\s*56px/,
+  );
 
   assert.match(gauge, /max-width:\s*[^;]+/);
   assert.match(gauge, /max-height:\s*[^;]+/);

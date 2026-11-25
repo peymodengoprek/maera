@@ -69,8 +69,8 @@ export const CSS = `
 .maera-status[data-state="on"] .maera-status-dot{background:var(--m-status,var(--m-accent));box-shadow:0 0 0 5px color-mix(in srgb,var(--m-status,var(--m-accent)) 25%,transparent)}
 .maera-status[data-state="off"] .maera-status-dot{background:var(--m-muted)}
 .maera-status[data-state="unknown"] .maera-status-label{color:var(--m-muted)}
-.maera-chart-body{height:100%;min-height:0;justify-content:flex-start}
-.maera-chart-svg{display:block;width:100%;height:100%;min-height:0;flex:1 1 auto}
+.maera-chart-body{position:relative;flex:1;min-height:32px;width:100%;justify-content:flex-start}
+.maera-chart-svg{position:absolute;inset:0;width:100%;height:100%;display:block}
 .maera-chart-grid{stroke:var(--m-border);stroke-width:1;vector-effect:non-scaling-stroke}
 .maera-chart-area{fill:var(--m-status,var(--m-accent));opacity:.14;stroke:none}
 .maera-chart-line{fill:none;stroke:var(--m-status,var(--m-accent));stroke-width:2;stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke}
@@ -110,6 +110,7 @@ export const CSS = `
 .maera-unsupported{margin:0;color:var(--m-muted);font-size:.85rem;font-style:italic}
 @container (max-width: 599px){
   .maera-widget, .maera-card{grid-column:1/-1 !important;grid-row:auto !important}
+  .maera-chart-body{min-height:56px}
   .maera{padding:16px}
 }
 @container (min-width: 600px) and (max-width: 959px){
