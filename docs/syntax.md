@@ -38,7 +38,9 @@ widgets:   ordered list of widgets rendered on the grid
 | `title` | string | ✅ | — | Non-empty dashboard title. |
 | `theme` | string | ❌ | `"default"` | Theme name applied to the dashboard root. |
 
-The dashboard grid is fixed at 12 columns. The `columns` property is not supported on `app`.
+The dashboard grid is fixed at 12 columns. The `columns` property is not
+supported on `app`, and `span` is not supported on widgets; use `cols` and
+`rows` instead.
 
 ### Source names and bindings
 
@@ -153,26 +155,32 @@ to the source as follows:
 | `websocket` | Sends `{ "path": "<binding path>", "value": <value> }` as JSON over the open socket. |
 | `mqtt` | Publishes `{ "path": "<binding path>", "value": <value> }` as JSON to `write_topic`. |
 
-For `rest` sources, the JSON payload body automatically mirrors the bound property path:
-- **Direct / nested properties**: When bound to specific properties, Maera structures the JSON body directly for external REST APIs:
+For `rest` sources, the JSON payload body automatically mirrors the bound
+property path:
+
+- **Direct / nested properties**: When bound to specific properties, Maera
+  structures the JSON body directly for external REST APIs:
   - Single property: `bind: metrics_stream.paused` sends `{"paused": true}`
   - Single property: `bind: cpu_ctrl.target` sends `{"target": 90}`
-  - Nested property: `bind: cpu_ctrl.config.target` sends `{"config": {"target": 90}}`
-- **`.value` fallback**: When bound to `.value` (for example `bind: brightness.value`) or when the property path is empty, Maera sends `{ "path": "value", "value": <value> }` for backwards compatibility.
+  - Nested property: `bind: cpu_ctrl.config.target` sends
+    `{"config": {"target": 90}}`
+- **`.value` fallback**: When bound to `.value` (for example
+  `bind: brightness.value`) or when the property path is empty, Maera sends
+  `{ "path": "value", "value": <value> }` for backwards compatibility.
 
-For `websocket` and `mqtt`, the binding path in the write payload is the part after the source name, for
-example `bind: fan.value` sends `path: "value"`. Writes are asynchronous; the
-widget shows a pending state until the source confirms the write. If the source
-is not connected or rejects the write, the widget reports the error and keeps
-the last confirmed value.
+For `websocket` and `mqtt`, the binding path in the write payload is the part
+after the source name, for example `bind: fan.value` sends `path: "value"`.
+Writes are asynchronous; the widget shows a pending state until the source
+confirms the write. If the source is not connected or rejects the write, the
+widget reports the error and keeps the last confirmed value.
 
 ---
 
 ## Widgets
 
-Every widget accepts the common properties below. `text` is the only widget
-that does **not** accept `bind`; it requires `content` instead. Unknown
-properties are compile errors.
+Every widget accepts the common properties below. `text` is the only widget that
+does not require `bind`; it can use `content` instead, or combine `content`
+with `bind`. Unknown properties are compile errors.
 
 | Property | Type | Required | Default | Notes |
 | :--- | :--- | :---: | :--- | :--- |
@@ -182,9 +190,13 @@ properties are compile errors.
 | `rows` | integer | ❌ | `1` | Height in grid rows, integer from `1` to `6`. |
 | `bind` | string | ✅* | — | `<source>.<path>` binding. Required for every widget except `text`. |
 
+\* `text` may omit `bind` when `content` is provided.
+
 The grid is fixed at 12 columns wide. A widget with `cols: 6` occupies half of
 the grid; `cols: 12` occupies a full row. `rows` defines the vertical span of
 the widget in rows (1 to 6).
+
+All widget types support [`state` / `steps`](#conditions-state-and-steps).
 
 ### `stat`
 
@@ -225,7 +237,8 @@ every source emission, even when the value does not change.
 | `max` | number | ❌ | Fixed upper Y-axis bound (auto-scaled when omitted). |
 | `unit` | string | ❌ | Unit shown next to the current value. |
 
-`chart` does not support `state` or `steps`.
+If both `min` and `max` are provided, `min` must be smaller than `max`.
+Supports [`state` / `steps`](#conditions-state-and-steps).
 
 ### `status`
 
@@ -245,17 +258,25 @@ An on/off indicator with a coloured dot and label. It supports two data modes.
   numbers are on. `false`, `"false"`, `"off"`, `"0"`, `"no"`, and `""` are
   off. Anything else is `unknown` and renders an empty label.
 
-Supports [`state` / `steps`](#conditions-state-and-steps) for numeric data.
+Supports [`state` / `steps`](#conditions-state-and-steps) for numeric data and,
+as shown in the UI, for string or boolean data when `at` uses the same type.
 
 ### `text`
 
-Static text with no data binding.
+Static or dynamic text. `text` may use `content`, `bind`, or both.
 
 | Property | Type | Required | Notes |
 | :--- | :--- | :---: | :--- |
-| `content` | string | ✅ | Text to render. |
+| `content` | string | ✅* | Text to render. Supports `{{value}}` interpolation when `bind` is set. |
+| `bind` | string | ✅* | Bound value used for interpolation and conditions. |
 
-`text` does not accept `bind`, `state`, or `steps`.
+\* At least one of `content` or `bind` is required.
+
+When `bind` is set and `content` contains `{{value}}`, the placeholder is
+replaced with the current value. Without `{{value}}`, `content` is rendered as
+static text and the bound value still drives conditions.
+
+Supports [`state` / `steps`](#conditions-state-and-steps).
 
 ### `switch`
 
@@ -268,8 +289,8 @@ An interactive checkbox that writes a boolean to the bound source.
 
 The switch uses the same boolean conversion as `status`. On change it writes
 `true` or `false` to the source. Writing is supported by every source type; see
-[Writing values](#writing-values). `switch` does not support `state` or
-`steps`.
+[Writing values](#writing-values). Supports
+[`state` / `steps`](#conditions-state-and-steps).
 
 ### `slider`
 
@@ -282,18 +303,18 @@ An interactive range input that writes a number to the bound source.
 | `max` | number | ❌ | Maximum value (UI default `min + 100`). |
 | `step` | number | ❌ | Increment, must be greater than `0` (UI default `1`). |
 
+If both `min` and `max` are provided, `min` must be smaller than `max`.
 The displayed value follows the store. On release, the slider writes the new
 number to the source. If the value is missing, the slider starts at `min`.
-`slider` does not support `state` or `steps`.
+Supports [`state` / `steps`](#conditions-state-and-steps).
 
 ---
 
 ## Conditions
 
-Conditions map a numeric value to a text label and/or a status colour. They are
-supported **only** on `stat`, `gauge`, and `status`. A widget may use **either**
-`state` or `steps`, never both. Using conditions on any other widget is a
-compile error.
+Conditions map a value to a text label and/or a status colour. They are
+supported on every widget type. A widget may use **either** `state` or `steps`,
+never both. Using both is a compile error.
 
 ### Outcomes
 
@@ -320,17 +341,19 @@ can style through the `--m-status` CSS variables.
 
 ### `state`
 
-A single inclusive comparison against a threshold.
+A single comparison against a threshold.
 
 | Field | Type | Required | Notes |
 | :--- | :--- | :---: | :--- |
-| `threshold` | number | ✅ | Comparison value. |
-| `above` | outcome | ✅* | Used when `value > threshold` (and for equality when `equal` is absent). |
-| `below` | outcome | ✅* | Used when `value < threshold`. |
-| `equal` | outcome | ❌ | Used when `value === threshold`; falls back to `above` when omitted. |
+| `threshold` | number/string/boolean | ✅ | Comparison value. |
+| `above` | outcome | ❌* | Used when `value > threshold` (numbers only). |
+| `below` | outcome | ❌* | Used when `value < threshold` (numbers only). |
+| `equal` | outcome | ❌* | Used when `value === threshold`. |
 
 \* At least one of `above`, `below`, or `equal` is required. If no branch
 matches, the widget has no outcome for that value.
+
+For a numeric `threshold`, all three branches are available:
 
 ```text
 value <  threshold  -> below
@@ -338,13 +361,17 @@ value === threshold -> equal (or above when equal is omitted)
 value >  threshold  -> above
 ```
 
+For a string or boolean `threshold`, only `equal` is allowed; `above` and
+`below` are compile errors. The outcome is produced only when
+`value === threshold`.
+
 ### `steps`
 
-An ordered list of thresholds evaluated from highest to lowest.
+An ordered list of thresholds evaluated from highest to lowest for numbers.
 
 | Field | Type | Required | Notes |
 | :--- | :--- | :---: | :--- |
-| `at` | number | ❌ | Inclusive threshold (`value >= at`). Unique per list. |
+| `at` | number/string/boolean | ❌ | Inclusive threshold (`value >= at` for numbers, `value === at` otherwise). Omit for a fallback. |
 | `text` | string | ✅* | Label for this step. |
 | `status` | string | ✅* | Status colour for this step. |
 
@@ -353,26 +380,32 @@ An ordered list of thresholds evaluated from highest to lowest.
 Rules:
 
 - `steps` must be a non-empty list.
-- `at` is **inclusive**: a step matches when `value >= at`.
+- `at` is **inclusive** for numbers: a step matches when `value >= at`.
 - The matching step with the **largest** `at` wins, regardless of list order.
 - `at` values must be unique.
+- All `at` values in one `steps` list must have the same type (number, string,
+  or boolean).
 - At most one step may omit `at`. That step is the fallback and is used when no
-  numeric step matches. If no fallback exists and no step matches, the widget
-  has no outcome.
-- Non-numeric values produce no outcome.
+  other step matches.
+- For string or boolean `at` values, matching uses exact equality
+  (`value === at`).
+- When `at` values are numeric, a non-numeric value produces no outcome, even
+  if a fallback step exists. When `at` values are strings or booleans, a
+  fallback step catches any non-matching value.
 
 ### Numeric conditions vs boolean `on`/`off`
 
-`state` and `steps` operate on **numbers**. `on`/`off` on the `status` widget
-operate on **booleans and strings**. They are different mechanisms:
+`state` and `steps` can operate on numbers, strings, or booleans. `on`/`off`
+on the `status` widget operate on booleans and strings. They are different
+mechanisms:
 
-- Use `state` / `steps` when the bound value is numeric and you want threshold
-  or status-level mapping.
+- Use `state` / `steps` when you want threshold or status-level mapping.
 - Use `on` / `off` when the bound value is boolean or a string such as
   `"on"`, `"off"`, `"open"`, or `"closed"`.
 
-On `status`, if both are present, `state` / `steps` take precedence for numeric
-values; the boolean `on`/`off` mapping is used only when no outcome matches.
+On `status`, if both are present, `state` / `steps` take precedence for
+matching values; the boolean `on`/`off` mapping is used only when no outcome
+matches.
 
 ---
 
@@ -517,6 +550,12 @@ widgets:
     max: 40
     unit: "°C"
     cols: 6
+    steps:
+      - at: 33
+        text: "Hot"
+        status: danger
+      - text: "Normal"
+        status: ok
 
   - type: text
     content: "Mock data, no backend required."
@@ -570,6 +609,12 @@ widgets:
     bind: metrics_stream.paused
     label: "Pause stream"
     cols: 3
+    steps:
+      - at: true
+        text: "Paused"
+        status: warning
+      - text: "Running"
+        status: ok
 
   - type: slider
     title: "Target CPU"
@@ -637,5 +682,18 @@ widgets:
         status: warning
       below:
         text: "On target"
+        status: ok
+
+  - type: text
+    bind: live.value
+    content: "Live value: {{value}}"
+    cols: 12
+    state:
+      threshold: 30
+      above:
+        text: "High"
+        status: danger
+      below:
+        text: "Normal"
         status: ok
 ```
