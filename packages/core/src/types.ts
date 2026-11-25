@@ -137,18 +137,69 @@ export type CompileErrorCode =
   | "UNKNOWN_KEY"
   | "UNSUPPORTED";
 
-export interface CompileError {
+export type Severity = "error" | "warning" | "info";
+
+export interface DiagnosticSummary {
+  errors: number;
+  warnings: number;
+  infos: number;
+  suppressedCount: number;
+  total?: number;
+}
+
+export interface Diagnostic {
   code: CompileErrorCode;
   message: string;
   /** Nomor baris 1-based di index.maera, atau null jika tidak bisa dilacak */
   line: number | null;
   /** Jalur logis, mis. `widgets[1].bind` */
   path: string;
+  /** Tingkat keparahan diagnostik */
+  severity: Severity;
+  /** Tahap pipeline yang menghasilkan diagnostik */
+  group?: string;
+  stage?: string;
+  category?: string;
+  /** Saran kunci/nilai terdekat (typo suggestion) */
+  suggestion?: string;
+  suggestions?: string[];
+  /** Apakah diagnostik ditahan (cascade suppression) */
+  suppressed?: boolean;
 }
 
+export type CompileError = Diagnostic;
+
 export type CompileResult =
-  | { ok: true; ast: maeraAST; errors: [] }
-  | { ok: false; ast: null; errors: CompileError[] };
+  | {
+      ok: true;
+      ast: maeraAST;
+      errors: [];
+      diagnostics: Diagnostic[];
+      warnings: Diagnostic[];
+      infos: Diagnostic[];
+      suppressed: Diagnostic[];
+      allDiagnostics?: Diagnostic[];
+      summary: DiagnosticSummary;
+      sourceRegistry: Record<string, "valid" | "invalid">;
+      invalidSources: string[];
+      groups: Record<string, Diagnostic[]>;
+      grouped?: Record<string, Diagnostic[]>;
+    }
+  | {
+      ok: false;
+      ast: null;
+      errors: Diagnostic[];
+      diagnostics: Diagnostic[];
+      warnings: Diagnostic[];
+      infos: Diagnostic[];
+      suppressed: Diagnostic[];
+      allDiagnostics?: Diagnostic[];
+      summary: DiagnosticSummary;
+      sourceRegistry: Record<string, "valid" | "invalid">;
+      invalidSources: string[];
+      groups: Record<string, Diagnostic[]>;
+      grouped?: Record<string, Diagnostic[]>;
+    };
 
 /** Nilai satu source pada satu waktu: objek bebas, mis. { value: 24.1, unit: '°C' } */
 export type SourceData = Record<string, unknown>;

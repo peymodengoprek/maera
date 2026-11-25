@@ -247,17 +247,88 @@ function formatPath(path: PathSeg[]): string {
  * Kompilasi teks `index.maera` menjadi AST.
  * Tidak pernah melempar error untuk input tidak valid: kegagalan dikembalikan sebagai daftar `errors`.
  */
+function levenshtein(a: string, b: string): number {
+  if (a === b) return 0;
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    let cur = [i];
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      cur[j] = Math.min(prev[j]! + 1, cur[j - 1]! + 1, prev[j - 1]! + cost);
+    }
+    prev = cur;
+  }
+  return prev[b.length]!;
+}
+
+function nearestSuggestion(value: string, options: readonly string[]): string | undefined {
+  if (options.length === 0) return undefined;
+  let best: string | undefined;
+  let bestDist = Infinity;
+  const v = value.toLowerCase();
+  for (const opt of options) {
+    const d = levenshtein(v, opt.toLowerCase());
+    if (d < bestDist) {
+      bestDist = d;
+      best = opt;
+    }
+  }
+  // Saran hanya jika cukup dekat (toleransi).
+  if (best === undefined) return undefined;
+  const threshold = Math.max(2, Math.floor(value.length / 2));
+  return bestDist <= threshold ? best : undefined;
+}
+
+function withSuggestion(message: string, suggestion?: string): string {
+  if (!suggestion) return message;
+  return `${message} Saran: '${suggestion}'. Mungkin maksud Anda '${suggestion}'.`;
+}
+
+let currentGroup = "schema";
+let currentStage = "schema";
+
 export function compile(source: string): CompileResult {
   const errors: CompileError[] = [];
+  const warnings: CompileError[] = [];
+  const infos: CompileError[] = [];
+  const suppressed: CompileError[] = [];
   const lineIndex = buildLineIndex(source);
 
-  const err = (code: CompileErrorCode, path: PathSeg[], message: string) => {
-    errors.push({
+  const diag = (
+    code: CompileErrorCode,
+    path: PathSeg[],
+    message: string,
+    severity: "error" | "warning" | "info" = "error",
+    suggestion?: string,
+    group: string = currentGroup,
+    suppressedFlag = false,
+  ) => {
+    const d: CompileError = {
       code,
-      message,
+      message: suggestion ? withSuggestion(message, suggestion) : message,
       path: formatPath(path),
       line: lookupLine(lineIndex, path),
-    });
+      severity,
+      group,
+      stage: group,
+      category: group,
+      suggestion,
+      suggestions: suggestion ? [suggestion] : [],
+      suppressed: suppressedFlag,
+    };
+    if (suppressedFlag) {
+      suppressed.push(d);
+      return;
+    }
+    if (severity === "warning") warnings.push(d);
+    else if (severity === "info") infos.push(d);
+    else errors.push(d);
+  };
+
+  const err = (code: CompileErrorCode, path: PathSeg[], message: string, suggestion?: string) => {
+    diag(code, path, message, "error", suggestion, currentGroup, false);
   };
 
   // ── Tahap 1: Parse ──────────────────────────────────────────────
@@ -266,17 +337,33 @@ export function compile(source: string): CompileResult {
     doc = loadYaml(source);
   } catch (e) {
     const ye = e as YAMLException;
+    const d = {
+      code: "YAML_SYNTAX" as const,
+      message: `Sintaks YAML tidak valid: ${ye.reason ?? ye.message}`,
+      line: ye.mark ? ye.mark.line + 1 : null,
+      path: "",
+      severity: "error" as const,
+      group: "yaml",
+      stage: "yaml",
+      category: "yaml",
+      suggestion: undefined,
+      suggestions: [],
+      suppressed: false,
+    };
     return {
       ok: false,
       ast: null,
-      errors: [
-        {
-          code: "YAML_SYNTAX",
-          message: `Sintaks YAML tidak valid: ${ye.reason ?? ye.message}`,
-          line: ye.mark ? ye.mark.line + 1 : null,
-          path: "",
-        },
-      ],
+      errors: [d],
+      diagnostics: [d],
+      warnings: [],
+      infos: [],
+      suppressed: [],
+      allDiagnostics: [d],
+      summary: { errors: 1, warnings: 0, infos: 0, suppressedCount: 0, total: 1 },
+      sourceRegistry: {},
+      invalidSources: [],
+      groups: { yaml: [d] },
+      grouped: { yaml: [d] },
     };
   }
 
@@ -286,35 +373,137 @@ export function compile(source: string): CompileResult {
       [],
       "Isi index.maera harus berupa objek dengan kunci `app`, `sources`, dan `widgets`.",
     );
-    return { ok: false, ast: null, errors };
+    const allDiags = [...errors, ...warnings, ...infos];
+    const groups: Record<string, CompileError[]> = {};
+    for (const d of [...allDiags, ...suppressed]) {
+      const g = d.group || "schema";
+      if (!groups[g]) groups[g] = [];
+      groups[g]!.push(d);
+    }
+    return {
+      ok: false,
+      ast: null,
+      errors,
+      diagnostics: allDiags,
+      warnings,
+      infos,
+      suppressed,
+      allDiagnostics: [...allDiags, ...suppressed],
+      summary: {
+        errors: errors.length,
+        warnings: warnings.length,
+        infos: infos.length,
+        suppressedCount: suppressed.length,
+        total: allDiags.length + suppressed.length,
+      },
+      sourceRegistry: {},
+      invalidSources: [],
+      groups,
+      grouped: groups,
+    };
   }
 
   // ── Tahap 2: Validasi ───────────────────────────────────────────
+  currentGroup = "schema";
   const app = validateApp(doc["app"], err);
-  const sources = validateSources(doc["sources"], err, lineIndex);
-  const widgets = validateWidgets(doc["widgets"], err, lineIndex);
 
-  // ── Tahap 3: Resolve binding ────────────────────────────────────
-  for (const w of widgets) {
-    if (!w.bind) continue;
-    const idx = Number(w.id.slice(1));
-    if (!(w.bind.s in sources)) {
-      err(
-        "UNKNOWN_SOURCE",
-        ["widgets", idx, "bind"],
-        `Sumber data '${w.bind.s}' tidak ditemukan. Tersedia: ${Object.keys(sources).join(", ") || "(kosong)"}.`,
-      );
+  currentGroup = "source";
+  const srcResult = validateSources(doc["sources"], err, lineIndex);
+  const sources = srcResult.sources;
+  const invalidSources = srcResult.invalid;
+  const sourceRegistry: Record<string, "valid" | "invalid"> = {};
+  if (isObj(doc["sources"])) {
+    for (const name of Object.keys(doc["sources"] as Obj)) {
+      sourceRegistry[name] = invalidSources.includes(name) ? "invalid" : "valid";
     }
   }
 
-  if (errors.length > 0 || !app) return { ok: false, ast: null, errors };
+  currentGroup = "widget";
+  const widgets = validateWidgets(doc["widgets"], err, lineIndex);
+
+  // ── Tahap 3: Resolve binding ────────────────────────────────────
+  currentGroup = "binding";
+  const declaredSourceNames = isObj(doc["sources"]) ? Object.keys(doc["sources"] as Obj) : [];
+  for (const w of widgets) {
+    if (!w.bind) continue;
+    const idx = Number(w.id.slice(1));
+    const name = w.bind.s;
+    if (name in sources) continue;
+    if (invalidSources.includes(name)) {
+      diag(
+        "UNKNOWN_SOURCE",
+        ["widgets", idx, "bind"],
+        `Sumber data '${name}' tidak valid; error turunan ditekan.`,
+        "error",
+        undefined,
+        "binding",
+        true,
+      );
+      continue;
+    }
+    const suggestion = nearestSuggestion(name, declaredSourceNames);
+    err(
+      "UNKNOWN_SOURCE",
+      ["widgets", idx, "bind"],
+      `Sumber data '${name}' tidak ditemukan. Tersedia: ${Object.keys(sources).join(", ") || "(kosong)"}.`,
+      suggestion,
+    );
+  }
+
+  const allDiags = [...errors, ...warnings, ...infos];
+  const groups: Record<string, CompileError[]> = {};
+  for (const d of [...allDiags, ...suppressed]) {
+    const g = d.group || "schema";
+    if (!groups[g]) groups[g] = [];
+    groups[g]!.push(d);
+  }
+
+  const finalSummary = {
+    errors: errors.length,
+    warnings: warnings.length,
+    infos: infos.length,
+    suppressedCount: suppressed.length,
+    total: allDiags.length + suppressed.length,
+  };
+
+  if (errors.length > 0 || !app) {
+    return {
+      ok: false,
+      ast: null,
+      errors,
+      diagnostics: allDiags,
+      warnings,
+      infos,
+      suppressed,
+      allDiagnostics: [...allDiags, ...suppressed],
+      summary: finalSummary,
+      sourceRegistry,
+      invalidSources,
+      groups,
+      grouped: groups,
+    };
+  }
 
   // ── Tahap 4: Output AST ─────────────────────────────────────────
   const ast: maeraAST = { app, sources, widgets };
-  return { ok: true, ast, errors: [] };
+  return {
+    ok: true,
+    ast,
+    errors: [],
+    diagnostics: allDiags,
+    warnings,
+    infos,
+    suppressed,
+    allDiagnostics: [...allDiags, ...suppressed],
+    summary: finalSummary,
+    sourceRegistry,
+    invalidSources,
+    groups,
+    grouped: groups,
+  };
 }
 
-type ErrFn = (code: CompileErrorCode, path: PathSeg[], message: string) => void;
+type ErrFn = (code: CompileErrorCode, path: PathSeg[], message: string, suggestion?: string) => void;
 
 function validateApp(raw: unknown, err: ErrFn): AppNode | null {
   if (raw === undefined) {
@@ -352,11 +541,11 @@ function validateSources(
   raw: unknown,
   err: ErrFn,
   li: Map<string, number>,
-): Record<string, SourceNode> {
+): { sources: Record<string, SourceNode>; invalid: string[] } {
   const out: Record<string, SourceNode> = {};
   if (raw === undefined) {
     err("MISSING_FIELD", [], "Bagian `sources` wajib ada.");
-    return out;
+    return { sources: out, invalid: [] };
   }
   if (!isObj(raw)) {
     err(
@@ -364,7 +553,7 @@ function validateSources(
       ["sources"],
       "`sources` harus berupa objek: nama -> definisi.",
     );
-    return out;
+    return { sources: out, invalid: [] };
   }
 
   for (const [name, def] of Object.entries(raw)) {
@@ -662,7 +851,8 @@ function validateSources(
       };
     }
   }
-  return out;
+  const invalid = Object.keys(raw as Obj).filter((name) => !(name in out));
+  return { sources: out, invalid };
 }
 
 function validateWidgets(
@@ -700,10 +890,12 @@ function validateWidgets(
       return;
     }
     if (!(type in WIDGET_SPECS)) {
+      const suggestion = nearestSuggestion(String(type), [...WIDGET_TYPES]);
       err(
         "UNKNOWN_WIDGET",
         [...base, "type"],
         `Tipe widget '${type}' tidak dikenal. Pilihan: ${WIDGET_TYPES.join(", ")}.`,
+        suggestion,
       );
       return;
     }
@@ -721,6 +913,7 @@ function validateWidgets(
       ok = false;
     }
 
+    currentGroup = "layout";
     const cols = w["cols"] ?? spec.cols ?? 3;
     if (!isNum(cols) || !Number.isInteger(cols) || cols < 1 || cols > 12) {
       err(
@@ -741,6 +934,7 @@ function validateWidgets(
       ok = false;
     }
 
+    currentGroup = "widget";
     let bind: Binding | undefined;
     const bindRaw = w["bind"];
     if (bindRaw === undefined) {
@@ -844,10 +1038,12 @@ function unknownKeys(
   for (const key of Object.keys(raw)) {
     if (allowed.has(key) || ignore?.has(key)) continue;
     const hint = key === "span" ? " Gunakan 'cols' untuk menentukan lebar kolom." : "";
+    const suggestion = nearestSuggestion(key, [...allowed]);
     err(
       "UNKNOWN_KEY",
       [...path, key],
       `Kunci '${key}' tidak dikenal.${hint} Pilihan: ${[...allowed].join(", ")}.`,
+      suggestion,
     );
     ok = false;
   }

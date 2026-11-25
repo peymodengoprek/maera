@@ -507,6 +507,71 @@ test("penerimaan dan default nilai cols (1..12) serta rows (1..6) di AST", () =>
   assert.equal(r2.ast.widgets[0]!.rows, 2);
 });
 
+test("cascade suppression: source invalid tidak memicu UNKNOWN_SOURCE", () => {
+  const src = `app:
+  title: T
+sources:
+  temp:
+    type: mock
+    maxaaaaaaa: 1
+widgets:
+  - type: stat
+    bind: temp.value
+`;
+  const r = compile(src);
+  assert.equal(r.ok, false);
+  assert.equal(r.errors.some((e) => e.code === "UNKNOWN_SOURCE"), false);
+  assert.equal(r.summary.suppressedCount, 1);
+  assert.equal(r.suppressed[0]?.code, "UNKNOWN_SOURCE");
+});
+
+test("typo suggestion pada UNKNOWN_KEY menyertakan saran", () => {
+  const src = `app:
+  title: T
+  titel: X
+sources:
+  temp:
+    type: mock
+widgets: []
+`;
+  const r = compile(src);
+  const e = r.errors.find((x) => x.path === "app.titel")!;
+  assert.ok(e.suggestion === "title" || /title/.test(e.message));
+});
+
+test("severity dan summary tersedia", () => {
+  const src = `app:
+  title: T
+sources:
+  temp:
+    type: mock
+widgets: []
+`;
+  const r = compile(src);
+  // valid -> no errors
+  assert.equal(r.ok, true);
+  assert.equal(r.summary.errors, 0);
+  assert.equal(r.summary.warnings, 0);
+  assert.equal(r.summary.infos, 0);
+  assert.ok(r.summary.suppressedCount === 0);
+});
+
+test("UNKNOWN_SOURCE typo suggestion", () => {
+  const src = `app:
+  title: T
+sources:
+  temp:
+    type: mock
+widgets:
+  - type: stat
+    bind: tempp.value
+`;
+  const r = compile(src);
+  const e = r.errors.find((x) => x.code === "UNKNOWN_SOURCE")!;
+  assert.ok(e);
+  assert.ok(e.suggestion === "temp" || /temp/.test(e.message));
+});
+
 test("penolakan cols < 1, cols > 12, rows < 1, rows > 6, dan nilai non-integer", () => {
   const src = base(`  - type: stat
     bind: temp.value
