@@ -5,6 +5,32 @@ Semua perubahan penting pada proyek ini didokumentasikan di file ini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id-ID/1.1.0/) dan
 proyek ini memakai [Semantic Versioning](https://semver.org/lang/id/).
 
+## [0.4.0] - 2026-11-28
+
+### Added
+
+#### `@maera-js/core`
+
+- Layout grid 12 kolom tetap dengan properti `cols`/`rows` pada widget.
+- Dukungan `bind`, `state`, dan `steps` secara universal, termasuk tipe
+  nilai `string` dan `boolean`.
+- Pemetaan key payload write REST secara otomatis.
+- Diagnostic engine dengan Vite-style error overlay.
+
+#### `@maera-js/ui`
+
+- Layout horizontal `gauge` pada `rows: 1`.
+- Renderer diagnostik Vite-style error overlay.
+
+### Changed
+
+- Grid layout beralih ke `cols`/`rows` tetap 12 kolom.
+
+### Breaking Changes
+
+- `app.columns` dihapus.
+- `widget.span` dihapus.
+
 ## [0.3.0] - 2026-11-24
 
 Rilis awal paket `@maera-js/core`, `@maera-js/ui`, dan `@maera-js/cli`.
