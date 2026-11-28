@@ -556,6 +556,23 @@ async function runDevPages(root: string): Promise<void> {
   // initial fail-safe
   failSafePages(root); // prints warnings, may die
 
+  // Collect MAERA_OUTSIDE_PAGES warnings for browser
+  const outside = findMaeraOutsidePages(root);
+  const outsideWarnings: Array<{ severity: string; code: string; message: string }> = [];
+  if (!(globalThis as any).__maeraOutsideWarned) (globalThis as any).__maeraOutsideWarned = new Set();
+  const warnedSet = (globalThis as any).__maeraOutsideWarned as Set<string>;
+  for (const f of outside) {
+    const key = `${root}:${toPosix(f)}`;
+    if (warnedSet.has(key)) continue;
+    warnedSet.add(key);
+    outsideWarnings.push({
+      severity: 'warning',
+      code: 'MAERA_OUTSIDE_PAGES',
+      message: `file .maera di luar pages/ diabaikan: ${f}`,
+    });
+    console.warn(`warning[MAERA_OUTSIDE_PAGES] ${f}: file .maera di luar pages/ diabaikan.`);
+  }
+
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'maera-dev-'));
   const genRoot = path.join(tmp, 'public');
   fs.mkdirSync(genRoot, { recursive: true });
@@ -585,7 +602,58 @@ if (document.readyState === "loading") {
   boot();
 }
 `;
-    const entry = `import { mount } from "@maera-js/ui";\nimport { createRouter } from "@maera-js/router";\n${bootstrap}`;
+    const entry = `import { mount } from "@maera-js/ui";
+import { createDiagnosticsView } from "@maera-js/ui";
+import { createRouter } from "@maera-js/router";
+
+let active;
+let warned = new Set();
+let diagnosticsView = null;
+
+function initializeApp() {
+  const rootEl = document.getElementById("maera-root");
+  if (!rootEl) return;
+
+  if (!diagnosticsView) {
+    diagnosticsView = createDiagnosticsView(document);
+  }
+
+  const payload = window.__MAERA_DIAGNOSTICS__;
+  if (payload) {
+    diagnosticsView.update(payload);
+  }
+
+  if (!document.getElementById("__MAERA_DATA__")) return;
+  const dataScript = document.getElementById("__MAERA_DATA__");
+  let ast = null;
+  if (dataScript && dataScript.textContent) {
+    try { ast = JSON.parse(dataScript.textContent.trim()); } catch (e) { console.error(e); }
+  }
+  if (ast) {
+    try { mount(rootEl, ast); } catch (e) { console.error(e); }
+  } else {
+    const payload = window.__MAERA_DIAGNOSTICS__;
+    if (payload) {
+      diagnosticsView.update(payload);
+    }
+  }
+  try { createRouter(rootEl); } catch (e) { console.error(e); }
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initializeApp);
+} else {
+  initializeApp();
+}
+
+// Listen for live diagnostics updates from event source
+window.addEventListener("maera:diagnostics", (event) => {
+  const payload = (event as CustomEvent).detail;
+  if (diagnosticsView) {
+    diagnosticsView.update(payload);
+  }
+});
+`;
     const built = await esbuild.build({
       stdin: { contents: entry, resolveDir: cliDir, sourcefile: 'maera-entry.js', loader: 'js' },
       bundle: true,
@@ -614,6 +682,22 @@ if (document.readyState === "loading") {
     fs.writeFileSync(path.join(srcDir, 'maera.js'), bundleCode);
 
     const scan = scanPages(root);
+    let overallHasError = false;
+    const allDiagnostics: Array<{ severity: string; code: string; message: string; location?: string; path?: string }> = [];
+
+    // Add MAERA_OUTSIDE_PAGES warnings from closure
+    if (typeof outsideWarnings !== 'undefined') {
+      for (const w of outsideWarnings) {
+        allDiagnostics.push({
+          severity: w.severity,
+          code: w.code,
+          message: w.message,
+          location: '',
+          path: '',
+        });
+      }
+    }
+
     for (const page of scan.maera) {
       const source = fs.readFileSync(page.absPath, 'utf8');
       const { compile } = await loadCore();
@@ -621,12 +705,33 @@ if (document.readyState === "loading") {
       const outPath = path.join(genRoot, page.outRel);
       fs.mkdirSync(path.dirname(outPath), { recursive: true });
       if (!result.ok) {
+        overallHasError = true;
+        for (const e of result.errors) {
+          allDiagnostics.push({
+            severity: e.severity ?? 'error',
+            code: e.code ?? 'UNKNOWN',
+            message: e.message ?? 'Unknown error',
+            location: e.line != null ? `baris ${e.line}` : undefined,
+            path: e.path ?? page.relPath,
+          });
+        }
         const errText = result.errors.map((e: any) => `baris ${e.line ?? '?'} [${e.code}] ${e.message}`).join('\n');
         const html = `<!doctype html><html><head><meta charset="utf-8"><title>Error</title></head><body><div id="maera-root"><pre style="color:#b00020;white-space:pre-wrap">${escapeHtml(errText)}</pre></div><script src="${assetPath(page.depth, 'maera.js')}" defer></script></body></html>`;
         fs.writeFileSync(outPath, html);
         continue;
       }
       const depth = page.depth;
+      for (const d of result.diagnostics) {
+        allDiagnostics.push({
+          severity: d.severity,
+          code: d.code,
+          message: d.message,
+          location: d.line != null ? `baris ${d.line}` : d.path ?? undefined,
+          path: d.path,
+        });
+      }
+      // Collect CDN warnings from this page's .maera source? No, CDN warnings are from .html files.
+      // We'll collect them in the .html loop below.
       const html = `<!doctype html>
 <html lang="id">
 <head>
@@ -640,7 +745,11 @@ if (document.readyState === "loading") {
 <script id="__MAERA_DATA__" type="application/json">${JSON.stringify(result.ast)}</script>
 <script src="${assetPath(depth, 'maera.js')}" defer></script>
 <script>
-(function(){try{var es=new EventSource('/__maera_reload');es.onmessage=function(){location.reload();};}catch(e){}})();
+window.__MAERA_DIAGNOSTICS__ = ${JSON.stringify({ summary: { errors: overallHasError ? allDiagnostics.length : 0, warnings: allDiagnostics.filter((d: any) => d.severity === 'warning' || d.severity === 'info').length, infos: allDiagnostics.filter((d: any) => d.severity === 'info').length }, diagnostics: allDiagnostics })};
+window.dispatchEvent(new CustomEvent("maera:diagnostics", { detail: window.__MAERA_DIAGNOSTICS__ }));
+</script>
+<script>
+(function(){try{var es=new EventSource('/__maera_events');es.onmessage=function(event){const data=event.data||{};switch((event.event||'').toLowerCase()){case'init':const initPayload=JSON.parse(data.payload||'{}');if(initPayload.type==='update'){const view=document.querySelector('[maera-diagnostics]');if(view){view.__sdkUpdate__(initPayload.payload)}};break;case'update':const updPayload=JSON.parse(data.payload||'{}');if(updPayload.type==='diagnostics'){window.dispatchEvent(new CustomEvent("maera:diagnostics",{detail:updPayload.payload}))}else{if(updPayload.url&&location.pathname!==updPayload.url){location.reload()}};break;case'reload':location.reload();break;case'warning':window.dispatchEvent(new CustomEvent("maera:warning",{detail:JSON.parse(data.payload||'{}')}))};}catch(e){}};es.onopen=function(){es.send(JSON.stringify({type:'init'}))});es.onerror=function(){es.close();}};})();
 </script>
 </body>
 </html>
@@ -648,17 +757,46 @@ if (document.readyState === "loading") {
       fs.writeFileSync(outPath, html);
     }
 
+    // Collect CDN warnings from .html files and add to allDiagnostics
+    const cdnWarnings: Array<{ severity: string; code: string; message: string; location?: string; path?: string }> = [];
+    for (const p of scan.html) {
+      const content = fs.readFileSync(p.absPath, 'utf8');
+      const lines = content.split(/\r?\n/);
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (/https?:\/\//i.test(line)) {
+          cdnWarnings.push({
+            severity: 'warning',
+            code: 'CDN_EXTERNAL_DEPENDENCY',
+            message: 'Dependensi CDN eksternal (https://) terdeteksi.',
+            location: String(i + 1),
+            path: p.relPath,
+          });
+        }
+      }
+    }
+    // Add CDN warnings to allDiagnostics
+    for (const w of cdnWarnings) {
+      allDiagnostics.push({
+        severity: w.severity,
+        code: w.code,
+        message: w.message,
+        location: w.location != null ? `baris ${w.location}` : undefined,
+        path: w.path ? `pages/${w.path}` : undefined,
+      });
+    }
+
     for (const p of scan.html) {
       const outPath = path.join(genRoot, p.outRel);
       fs.mkdirSync(path.dirname(outPath), { recursive: true });
       // inject reload script in-memory
-      let content = fs.readFileSync(p.absPath, 'utf8');
-      if (/<\/body>/i.test(content)) {
-        content = content.replace(/<\/body>/i, `<script>(function(){try{var es=new EventSource('/__maera_reload');es.onmessage=function(){location.reload();};}catch(e){}})();</script></body>`);
+      let htmlContent = fs.readFileSync(p.absPath, 'utf8');
+      if (/<\/body>/i.test(htmlContent)) {
+        htmlContent = htmlContent.replace(/<\/body>/i, `<script>(function(){try{var es=new EventSource('/__maera_reload');es.onmessage=function(){location.reload();};}catch(e){}})();</script></body>`);
       } else {
-        content += `<script>(function(){try{var es=new EventSource('/__maera_reload');es.onmessage=function(){location.reload();}catch(e){}})();</script>`;
+        htmlContent += `<script>(function(){try{var es=new EventSource('/__maera_reload');es.onmessage=function(){location.reload();}catch(e){}})();</script>`;
       }
-      fs.writeFileSync(outPath, content);
+      fs.writeFileSync(outPath, htmlContent);
     }
 
     // 404.html ensure
@@ -670,18 +808,29 @@ if (document.readyState === "loading") {
 
   generate();
 
-  // file watching via polling
+  // file watching via polling with debounce
   let snapshot = takeSnapshot(root);
   const watcher = setInterval(() => {
     const next = takeSnapshot(root);
     if (next !== snapshot) {
       snapshot = next;
       void generate().catch((e) => console.error(e));
+      // Send events to SSE clients
+      const events: Array<{ type: string; payload: any }> = [];
+      // Check for outside .maera changes
+      const outside = findMaeraOutsidePages(root);
+      if (outside.length > 0) {
+        events.push({ type: 'outside', payload: outside });
+      }
+      // Check for diagnostics changes (simplified: always send full update)
+      events.push({ type: 'update', payload: takeSnapshot(root) });
       for (const res of sseClients) {
-        try { res.write('data: reload\n\n'); } catch { /* ignore */ }
+        try {
+          res.write(`data: ${JSON.stringify(events)}\n\n`);
+        } catch { /* ignore */ }
       }
     }
-  }, 500);
+  }, 100);
 
   // HTTP server
   const http = await import('node:http');
@@ -690,6 +839,13 @@ if (document.readyState === "loading") {
     if (urlPath === '/__maera_reload') {
       res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
       res.write('retry: 500\n\n');
+      sseClients.add(res);
+      req.on('close', () => sseClients.delete(res));
+      return;
+    }
+
+    if (urlPath === '/__maera_events') {
+      res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
       sseClients.add(res);
       req.on('close', () => sseClients.delete(res));
       return;
