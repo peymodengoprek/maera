@@ -5,6 +5,17 @@ Semua perubahan penting pada proyek ini didokumentasikan di file ini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id-ID/1.1.0/) dan
 proyek ini memakai [Semantic Versioning](https://semver.org/lang/id/).
 
+## [0.5.1] - 2026-11-28
+
+### Fixed
+- Fix `exports` di `package.json` untuk resolusi `require.resolve` di luar monorepo
+- Fix resolusi esbuild dan handling error di `maera build`/`maera dev` proyek eksternal
+- Normalisasi path Windows (`\`) ke POSIX (`/`) pada `scanPages` untuk routing `pages/`
+- Hilangkan duplikasi warning `MAERA_OUTSIDE_PAGES` saat startup `maera dev`
+
+### Added
+- Tambahkan `"./package.json": "./package.json"` pada blok `"exports"` untuk resolusi paket melalui `require`
+
 ## [0.5.0] - 2026-11-28
 
 ### Added

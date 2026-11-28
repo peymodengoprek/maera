@@ -30,7 +30,7 @@ export interface ScanPagesResult {
   allFiles: string[];
 }
 
-function toPosix(p: string): string {
+export function toPosix(p: string): string {
   return p.split(path.sep).join("/");
 }
 
@@ -70,7 +70,8 @@ export function scanPages(root: string): ScanPagesResult {
         const nextPrefix = relPrefix ? `${relPrefix}/${entry.name}` : entry.name;
         walk(path.join(dir, entry.name), nextPrefix);
       } else if (entry.isFile()) {
-        const rel = relPrefix ? `${relPrefix}/${entry.name}` : entry.name;
+        const rawRel = relPrefix ? `${relPrefix}/${entry.name}` : entry.name;
+        const rel = toPosix(rawRel);
         result.allFiles.push(rel);
         const ext = path.extname(entry.name).toLowerCase();
         if (ext === ".maera") {

@@ -16,6 +16,7 @@ import {
 import {
   assetPath,
   detectRouteCollisions,
+  toPosix,
   findMaeraOutsidePages,
   getPagesDir,
   inspectHtmlContent,
@@ -218,7 +219,7 @@ function failSafePages(root: string, fileArg?: string): { mode: 'file'; file: st
     if (!(globalThis as any).__maeraOutsideWarned) (globalThis as any).__maeraOutsideWarned = new Set();
     const warnedSet = (globalThis as any).__maeraOutsideWarned as Set<string>;
     for (const f of outside) {
-    const key = `${root}:${f}`;
+    const key = `${root}:${toPosix(f)}`;
     if (warnedSet.has(key)) continue;
     warnedSet.add(key);
     console.warn(`warning[MAERA_OUTSIDE_PAGES] ${f}: file .maera di luar pages/ diabaikan.`);
@@ -302,6 +303,7 @@ ${bootstrap}
     target: 'es2022',
     write: false,
     minify: false,
+    nodePaths: [path.join(root, 'node_modules'), path.join(cliDir, '../../..')],
     ...(aliases ? { alias: aliases } : {}),
     logLevel: 'silent',
   });
@@ -839,9 +841,17 @@ if (outArg && isDev) die('Opsi -o hanya untuk `maera build`.', true);
 
 const root = process.cwd();
 
-/** Error build esbuild sudah dicetak rapi oleh esbuild sendiri; jangan tambah stack trace. */
+function formatEsbuildErrors(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  if (e && typeof e === 'object' && 'errors' in e && Array.isArray((e as any).errors)) {
+    return (e as { errors: string[] }).errors.map((err: string) => `  - ${err}`).join('\n');
+  }
+  return String(e);
+}
+
 function fail(e: unknown): never {
-  if (!Array.isArray((e as { errors?: unknown }).errors)) console.error(e instanceof Error ? e.message : e);
+  const msg = formatEsbuildErrors(e);
+  console.error(msg || 'Build gagal tanpa pesan error');
   process.exit(1);
 }
 
