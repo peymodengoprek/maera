@@ -15,7 +15,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "tsx --test test/cli.test.ts",
+    "test": "tsx --test test/cli.test.ts test/pages.test.ts",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
@@ -24,3 +24,4 @@
     "esbuild": "^0.25.0"
   }
 }
+
