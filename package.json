@@ -7,7 +7,7 @@
   "engines": { "node": ">=18" },
   "scripts": {
     "dev": "tsx packages/cli/src/bin.ts dev",
-    "build": "npm run build -w @maera-js/core && npm run build -w @maera-js/ui && npm run build -w @maera-js/cli",
+    "build": "npm run build -w @maera-js/core && npm run build -w @maera-js/ui && npm run build -w @maera-js/router && npm run build -w @maera-js/cli",
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "check:example": "npm run check:example -w @maera-js/core",

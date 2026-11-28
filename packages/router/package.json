@@ -1,0 +1,34 @@
+{
+  "name": "@maera-js/router",
+  "version": "0.4.0",
+  "description": "Client-side router SPA untuk dashboard maera: AST swap, shared source pool, prefetch.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsx --test test/router.test.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@maera-js/core": "^0.4.0",
+    "@maera-js/ui": "^0.4.0"
+  },
+  "devDependencies": {
+    "happy-dom": "^21.0.4"
+  }
+}
