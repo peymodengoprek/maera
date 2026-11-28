@@ -1423,3 +1423,8 @@ test("CSS gauge default/rows >= 2 tidak kolaps dan mode rows: 1 horizontal denga
     /\.maera-widget\[data-type="gauge"\]\[data-rows="1"\]\s+\.maera-gauge-body\s*\{[^}]*min-height:\s*120px/,
   );
 });
+
+test("CSS resets html/body margin and .maera fills viewport height", () => {
+  assert.match(CSS, /html,\s*body\s*\{[^}]*margin:\s*0/);
+  assert.match(CSS, /\.maera\s*\{[^}]*min-height:\s*100vh/);
+});

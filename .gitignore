@@ -4,3 +4,10 @@ dist/
 .DS_Store
 .env
 examples/demo.bundle.js
+pages
+examples
+public
+
+docs/node_modules
+docs/.vitepress/dist
+docs/.vitepress/cache

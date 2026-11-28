@@ -2,6 +2,9 @@
 export const STYLE_ID = "maera-styles";
 
 export const CSS = `
+html,body{margin:0;padding:0;min-height:100%;background:var(--m-bg,#f4f6f8)}
+html:has(.maera[data-theme="dark"]),body:has(.maera[data-theme="dark"]){background:#0d141b}
+html:has(.maera[data-theme="light"]),body:has(.maera[data-theme="light"]){background:#f4f6f8}
 .maera{
   --m-bg:#f4f6f8; --m-surface:#ffffff; --m-border:#e2e6ea;
   --m-text:#14202b; --m-muted:#667785; --m-accent:#0f9d8a; --m-track:#e6ebef;
@@ -9,7 +12,7 @@ export const CSS = `
   --m-radius:14px; --m-gap:16px; --m-row-height:110px;
   --m-font:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   container-type:inline-size;
-  box-sizing:border-box; min-height:100%; padding:24px;
+  box-sizing:border-box; min-height:100vh; min-height:100dvh; padding:24px;
   background:var(--m-bg); color:var(--m-text); font-family:var(--m-font);
 }
 .maera[data-theme="dark"]{

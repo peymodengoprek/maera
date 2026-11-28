@@ -9,6 +9,9 @@ documents every key accepted by the compiler in `@maera-js/core`.
 - [Widgets](#widgets)
 - [Conditions](#conditions-state-and-steps)
 - [CLI reference](#cli-reference)
+- [Multi-page dashboards (file-based routing)](#multi-page-dashboards-file-based-routing)
+- [SPA router (@maera-js/router)](#spa-router-maera-jsrouter)
+- [Mount options (external store)](#mount-options-external-store)
 - [Editor integration](#editor-integration-json-schema)
 - [Complete examples](#complete-examples)
 
@@ -419,7 +422,9 @@ The `@maera-js/cli` package exposes the `maera` command.
 
 ```text
 maera dev [file.maera]                    Development server with live reload (default command)
-maera build [file.maera] [-o out.html]    Emit one standalone HTML file (default: dist/<name>.html)
+maera build [file.maera] [-o out.html]    Emit modular output in public/ (default)
+maera init [--force]                     Create pages/ and pages/index.maera
+maera add 404 [--force]                  Create pages/404.html
 maera schema [-o file.json]               Write the JSON Schema for *.maera (default: schema/maera.schema.json)
 ```
 
@@ -466,6 +471,126 @@ extra file arguments are reported as errors.
 
 ---
 
+## Multi-page dashboards (file-based routing)
+
+Maera supports multi-page dashboards by convention through a `pages/` folder.
+When no file argument is given, `maera dev` and `maera build` scan `pages/`
+instead of a single `.maera` file.
+
+### Conventions
+
+- `pages/index.maera` maps to `/` (output `public/index.html`).
+- `pages/gedung-a/suhu.maera` maps to `/gedung-a/suhu`
+  (output `public/gedung-a/suhu.html`).
+- `pages/` is walked recursively; `node_modules` and hidden folders
+  (`.git`, etc.) are skipped.
+- Files outside `pages/` with a `.maera` extension produce a
+  non-blocking warning; they are not part of the build.
+- A single file argument (`maera dev file.maera` /
+  `maera build file.maera`) overrides file-based routing.
+
+### Fail-safe
+
+- Missing or empty `pages/` stops cleanly (no stack trace) and suggests
+  `maera init`.
+- `maera init [--force]` creates `pages/` and a minimal
+  `pages/index.maera` (one `mock` source and one `stat` widget). Existing
+  files are not overwritten unless `--force` is given.
+
+### Custom static pages and 404
+
+- `maera add 404 [--force]` creates `pages/404.html` themed with the
+  `--m-*` tokens from `/src/maera.css`.
+- `pages/**/*.html` are copied as-is (pass-through) to `public/` and served
+  by `maera dev`; a missing route returns HTTP 404 using
+  `pages/404.html` when present.
+- Static inspection runs on every `pages/*.html`:
+  - **error (blocks build):** route collision (`foo.maera` + `foo.html`),
+    local asset references outside `/src/maera.{css,js}`, raw JS module
+    imports, and server template tags (`<?php`, `<%`, `{{...}}`).
+  - **warning:** raw code files in `pages/` (`.jsx`, `.tsx`, `.ts`, `.vue`,
+    `.css`, `.js`) and external CDN dependencies (`https://...`).
+
+### Modular build output
+
+`maera build` writes a `public/` tree:
+
+- `public/**/*.html` — HTML shell plus the dashboard AST as JSON in
+  `<script id="__MAERA_DATA__">`.
+- `public/src/maera.css` and `public/src/maera.js` — shared assets bundling
+  `@maera-js/core`, `@maera-js/ui`, and `@maera-js/router` without
+  minification or chunk splitting.
+- Relative paths are computed per route depth (`./src/...`,
+  `../src/...`, ...) and the shared script is loaded with `defer`.
+
+### Source continuity across pages
+
+Because the SPA router keeps a single `Store` and source runner pool, sources
+with identical configuration signatures stay alive when navigating between
+pages; sources no longer used by the new page are stopped. See
+[SPA router](#spa-router-maera-jsrouter).
+
+---
+## SPA router (@maera-js/router)
+
+The `@maera-js/router` package enables client-side navigation between the
+pages produced by `maera build` without a full page reload, while keeping
+real-time source connections alive.
+
+### Behaviour
+
+- Intercepts clicks on internal `<a href>` links (same origin; ignores
+  `target="_blank"`, `download`, and `#` anchors) and `popstate`
+  (Back/Forward).
+- Fetches the target document, parses `<script id="__MAERA_DATA__">` with
+  `DOMParser`, updates `document.title` and `history.pushState()`, then
+  swaps the contents of `#maera-root`.
+- Handles custom static `.html` pages (without `#__MAERA_DATA__`) and 404
+  responses (`/404.html`) gracefully.
+
+### Shared source pool
+
+- Source `Store` and source runners are keyed by a configuration signature
+  (`name` + JSON of the source definition).
+- Identical sources survive `destroy()` of the outgoing page; sources no
+  longer referenced by the incoming page are stopped.
+
+### Programmatic API
+
+| Method | Description |
+| :--- | :--- |
+| `push(url)` | Navigate to `url`, swapping the AST. |
+| `replace(url)` | Replace the current history entry. |
+| `prefetch(url)` | Fetch and cache a page in memory. |
+| `destroy()` | Tear down listeners, cache, and remaining sources. |
+
+The router is auto-wired into the generated `public/src/maera.js`; manual
+setup is only needed for custom shells.
+
+---
+## Mount options (external store)
+
+`mount()` in `@maera-js/ui` accepts an optional options object so an
+external store (for example the router's shared pool) can own source
+lifecycle:
+
+```text
+mount(container, ast, options?)
+mount(ast, container, options?)
+```
+
+| Option | Type | Default | Notes |
+| :--- | :--- | :--- | :--- |
+| `store` | `Store` | new store | Inject an external reactive store. |
+| `run` | boolean | `manageSources` | Whether to start sources. |
+| `manageSources` | boolean | `true` | When `false`, `destroy()` cleans up DOM, listeners, and subscriptions without stopping sources. |
+| `theme` | string | `ast.app.theme` | Theme applied to the root. |
+| `onError` | function | — | Called when a source reports an error. |
+
+With no options, `mount(container, ast)` keeps its original behaviour:
+creates a store, starts all sources, and stops them on `destroy()`.
+
+---
 ## Editor integration (JSON Schema)
 
 The repository ships `schema/maera.schema.json`. Point your editor's YAML
