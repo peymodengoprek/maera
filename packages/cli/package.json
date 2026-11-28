@@ -19,7 +19,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "tsx --test test/cli.test.ts test/pages.test.ts",
+    "test": "tsx --test test/cli.test.ts test/pages.test.ts test/maera-entry.test.ts",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
