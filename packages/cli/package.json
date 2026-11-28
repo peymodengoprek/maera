@@ -1,6 +1,6 @@
 {
   "name": "@maera-js/cli",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "CLI maera: dev server, builder HTML mandiri, dan generator JSON Schema untuk *.maera.",
   "license": "MIT",
   "type": "module",
@@ -19,8 +19,9 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@maera-js/core": "^0.5.1",
-    "@maera-js/ui": "^0.5.1",
+    "@maera-js/core": "^0.5.2",
+    "@maera-js/ui": "^0.5.2",
+    "@maera-js/router": "^0.5.2",
     "esbuild": "^0.25.0"
   }
 }

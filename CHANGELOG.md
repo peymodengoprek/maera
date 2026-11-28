@@ -5,6 +5,11 @@ Semua perubahan penting pada proyek ini didokumentasikan di file ini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id-ID/1.1.0/) dan
 proyek ini memakai [Semantic Versioning](https://semver.org/lang/id/).
 
+## [0.5.2] - 2026-11-28
+
+### Added
+- Tambahkan `@maera-js/router` ke `dependencies` `@maera-js/cli` sehingga proyek eksternal dapat build dan dev tanpa perlu menginstal router secara manual.
+
 ## [0.5.1] - 2026-11-28
 
 ### Fixed

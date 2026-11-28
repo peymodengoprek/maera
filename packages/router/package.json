@@ -1,6 +1,6 @@
 {
   "name": "@maera-js/router",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Client-side router SPA untuk dashboard maera: AST swap, shared source pool, prefetch.",
   "license": "MIT",
   "type": "module",
@@ -26,8 +26,8 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@maera-js/core": "^0.5.1",
-    "@maera-js/ui": "^0.5.1"
+    "@maera-js/core": "^0.5.2",
+    "@maera-js/ui": "^0.5.2"
   },
   "devDependencies": {
     "happy-dom": "^21.0.4"
