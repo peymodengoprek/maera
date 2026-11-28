@@ -4,29 +4,42 @@ import { injectStyles } from "./styles.js";
 import { getRenderer } from "./widgets.js";
 
 export interface MountOptions {
-  /** Pakai store sendiri; default membuat store baru. */
   store?: Store;
-  /** Jalankan data sources dari AST (default true). Isi false jika Anda mengisi store sendiri. */
   run?: boolean;
-  /** Timpa tema dari `app.theme` (mis. "dark"). */
+  manageSources?: boolean;
   theme?: string;
-  /** Dipanggil saat polling source `rest` gagal. */
   onError?: (source: string, error: unknown) => void;
 }
 
 export interface MountHandle {
   store: Store;
-  /** Hentikan source, lepas semua subscription, dan kosongkan container. */
   destroy(): void;
 }
 
-/** Render dashboard dari AST ke dalam `container`. */
-export function mount(ast: maeraAST, container: HTMLElement, opts: MountOptions = {}): MountHandle {
+export function mount(container: HTMLElement, ast: maeraAST, options?: MountOptions): MountHandle;
+export function mount(ast: maeraAST, container: HTMLElement, options?: MountOptions): MountHandle;
+export function mount(a: maeraAST | HTMLElement, b: HTMLElement | maeraAST, opts: MountOptions = {}): MountHandle {
+  let ast: maeraAST;
+  let container: HTMLElement;
+  if (
+    typeof a === "object" &&
+    a !== null &&
+    "app" in (a as object) &&
+    "widgets" in (a as object) &&
+    "sources" in (a as object)
+  ) {
+    ast = a as maeraAST;
+    container = b as HTMLElement;
+  } else {
+    container = a as HTMLElement;
+    ast = b as maeraAST;
+  }
+
   const doc = container.ownerDocument;
   injectStyles(doc);
 
-  // Riwayat harus cukup untuk chart dengan `points` terbesar (default store hanya 100).
   const maxPoints = ast.widgets.reduce((m, w) => (typeof w.props["points"] === "number" ? Math.max(m, Math.ceil(w.props["points"])) : m), 100);
+  const manageSources = opts.manageSources ?? true;
   const store = opts.store ?? createStore({ historyLimit: maxPoints });
   container.replaceChildren();
   container.classList.add("maera");
@@ -72,7 +85,6 @@ export function mount(ast: maeraAST, container: HTMLElement, opts: MountOptions 
       continue;
     }
 
-    // Evaluasi universal state:/steps: di level kartu (semua 7 widget).
     if (node.conditional) {
       let caption = card.querySelector<HTMLElement>(".maera-caption");
       if (!caption) {
@@ -96,13 +108,13 @@ export function mount(ast: maeraAST, container: HTMLElement, opts: MountOptions 
 
   container.append(header, grid);
 
-  // Source dijalankan SETELAH widget berlangganan agar emisi pertama tidak terlewat.
-  const runner = opts.run === false ? undefined : startSources(ast, store, opts.onError ? { onError: opts.onError } : {});
+  const shouldRun = opts.run ?? manageSources;
+  const runner = shouldRun ? startSources(ast, store, opts.onError ? { onError: opts.onError } : {}) : undefined;
 
   return {
     store,
     destroy() {
-      runner?.stop();
+      if (manageSources) runner?.stop();
       cleanups.forEach((fn) => fn());
       container.replaceChildren();
       container.classList.remove("maera");
