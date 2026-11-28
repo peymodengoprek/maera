@@ -1,6 +1,6 @@
 {
   "name": "@maera-js/core",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Compiler, reactive store, dan data sources untuk maera — tanpa dependensi DOM.",
   "license": "MIT",
   "type": "module",
