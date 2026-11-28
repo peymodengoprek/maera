@@ -215,7 +215,12 @@ function failSafePages(root: string, fileArg?: string): { mode: 'file'; file: st
 
   // warnings: outside .maera
     const outside = findMaeraOutsidePages(root);
+    if (!(globalThis as any).__maeraOutsideWarned) (globalThis as any).__maeraOutsideWarned = new Set();
+    const warnedSet = (globalThis as any).__maeraOutsideWarned as Set<string>;
     for (const f of outside) {
+    const key = `${root}:${f}`;
+    if (warnedSet.has(key)) continue;
+    warnedSet.add(key);
     console.warn(`warning[MAERA_OUTSIDE_PAGES] ${f}: file .maera di luar pages/ diabaikan.`);
   }
 
@@ -578,7 +583,7 @@ if (document.readyState === "loading") {
   boot();
 }
 `;
-    const entry = bootstrap;
+    const entry = `import { mount } from "@maera-js/ui";\nimport { createRouter } from "@maera-js/router";\n${bootstrap}`;
     const built = await esbuild.build({
       stdin: { contents: entry, resolveDir: cliDir, sourcefile: 'maera-entry.js', loader: 'js' },
       bundle: true,
